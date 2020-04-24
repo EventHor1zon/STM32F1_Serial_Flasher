@@ -24,12 +24,13 @@ import binascii
 
 class SerialFlasher:
 
+    port = None
+    baud = None
+    ser = None
 
     def __init__(self, port=None, baud=9600):
         self.port = port
         self.baud = baud
-        self.ser = None
-
 
     def getBaud(self):
         pass
@@ -44,9 +45,15 @@ class SerialFlasher:
         pass
 
     def setPort(self, port):
+
         pass
 
     def openPort(self):
+        # sanity check connection details then connect
+        pass
+
+    def close(self):
+        # close the socket
         pass
 
     def getTimeout(self):
@@ -54,16 +61,14 @@ class SerialFlasher:
         spb = float(1) / float(self.baud)
         return 100 * spb
 
-    def getSocketState(self):
+    def getSerialState(self):
         pass
 
-    def socketConnect(self):
+    def writeDevice(self, data):
+        ## sanity check data, return serial.write
         pass
 
-    def writeDevice(self):
-        pass
-
-    def readDevice(self):
+    def readDevice(self, len):
         pass
 
     def sendHandshake(self):
