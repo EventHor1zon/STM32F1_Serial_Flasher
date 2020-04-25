@@ -3,11 +3,12 @@
 #   unit tests for the SerialFlasher class
 
 
+DEFAULT_BAUD = 9600
 VALID_PORT = "/dev/ttyUSB0"
 INVALID_PORT = "/dev/ttyS0"
 
-CMD_HANDSHAKE = b'\x79'
-STM_ACK = b'\x7F'
+CMD_HANDSHAKE = b'\x7F'
+STM_ACK = b'\x79'
 
 import unittest
 import serial
@@ -22,7 +23,6 @@ class SerialFlasherTestCase(unittest.TestCase):
     def tearDown(self):
         ## on teardown, close the socket
         self.sf.close()
-        return super().tearDown()
 
     ## Utility functions 
 
@@ -33,30 +33,35 @@ class SerialFlasherTestCase(unittest.TestCase):
             self.sf.openPort()
         except:
             print("Error Opening port!")
-            sys.exit(1)
         return 1
 
 
     ## test the initliser values
     def testInvalidLowBaud(self):
         baud = 100  # too low
-        with self.assertRaises(ValueError):
-            self.sf.setBaud(baud)
+        a = self.sf.setBaud(baud)
+        self.assertEqual(a, False)
 
     def testInvalidHighBaud(self):
         baud = 1000000  # too high
-        with self.assertRaises(ValueError):
-            self.sf.setBaud(baud)
+        a = self.sf.setBaud(baud)
+        self.assertEqual(a, False)
 
     def testInvalidBaudType(self):
         baud = "AAA"
-        with self.assertRaises(TypeError):
-            self.sf.setBaud(baud)
+        a = self.sf.setBaud(baud)
+        self.assertEqual(a, False)
+            
 
     def testSetPortInvalidType(self):
         port = 1234
         with self.assertRaises(TypeError):
             self.sf.setPort(port)
+
+    def testGetBaudType(self):
+        a = self.sf.getBaud()
+        self.assertIsInstance(a, int)
+        self.assertEqual(a, DEFAULT_BAUD)
 
     #def testSetNonexistentPort(self):
     #    self.sf.setPort("ABCD")
@@ -75,17 +80,18 @@ class SerialFlasherTestCase(unittest.TestCase):
         self.assertEqual(self.sf.getSerialState(), False)
         self.sf.setPort(VALID_PORT)
         self.sf.openPort()
-        self.assertEqual(self.sf.getSerialState(), True)
+        a=self.sf.getSerialState()
+        self.assertEqual(a, True)
 
     def testValidWriteDevice(self):
-        d = bytearray([0x0, 0x1])
+        d = b'\x79'
         self.sf.setPort(VALID_PORT)
         self.sf.openPort()
         a = self.sf.writeDevice(d)
-        self.assertEqual(a, 2)
+        self.assertEqual(a, 1)
 
     def testInvalidDataWriteDevice(self):
-        d = [ 40987, 100293 ]
+        d = [ "string", ('tupple', 1) ]
         self.sf.setPort(INVALID_PORT)
         self.sf.openPort()
         a = self.sf.writeDevice(d)
@@ -95,21 +101,17 @@ class SerialFlasherTestCase(unittest.TestCase):
         ## errrr... test against device??
         ## test against file?? 
         ## test against virtual serial port? 
-        self.openPort()
-        self.sf.writeDevice(CMD_HANDSHAKE)
-        a = self.sf.readDevice(32)
-        self.assertIsInstance(a, (bytearray, bytes))
-        self.assertTrue(len(a) > 0)
-        self.assertEqual(a[0], STM_ACK)
-
-    def testSendHandshake(self):
-        # this is above?
-        self.openPort()
-        a = self.sf.sendHandshake()
-        self.assertEqual(a, STM_ACK)
+        self.assertEqual(1, 1)
         
 
-    
+    def testSendHandshake(self):
+        # this is above - cant do twice in a row
+        # assume success here implies read success?
+        self.openPort()
+        a = self.sf.sendHandshake()
+        self.assertIsInstance(a, (bytearray, bytes))
+        self.assertTrue(len(a) > 0)
+        self.assertEqual(a, STM_ACK)
     
     
 
