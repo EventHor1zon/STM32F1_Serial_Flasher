@@ -40,8 +40,19 @@ STM_NACK = b'\x1F'
 
 CFG_WRITE_TIMEOUT = 1
 
+
+device_info = {
+    'v_bootloader':0,
+    'supported_commands':[],
+    'readProtectionState':0,
+    'readAccesses':0,
+    'device_id':0,
+    
+}
+
+
 class SerialTool:
-    #
+    
     def __init__(self, port=None, baud=9600):
         self.ser = serial.Serial(port=None)
         self.port = port
@@ -97,7 +108,8 @@ class SerialTool:
 
     def close(self):
         # close the socket
-        pass
+        if self.ser.is_open:
+            self.ser.close()
 
     def getTimeout(self):
         ## generate read timeout of 100 bitwidths
@@ -143,6 +155,11 @@ class SerialTool:
         finally:
             return rx
 
+    def checkRxForAck(self, data):
+        ## check the first byte of data for ack
+        # @ret True/False 
+        pass
+
     def sendHandshake(self):
         try:
             if self.ser.is_open:
@@ -160,24 +177,77 @@ class SerialTool:
 
 
     def cmdGetInfo(self):
+        ## send the Get Info command 
+        ## @ret - Rx data
         pass
 
     def cmdGetVersionProt(self):
+        ## send the Version/ReadProtection command 
+        ## @ret - Rx data
+        pass
+
+    def getDeviceInfo(self):
+        ## get device information from Version/Getinfo 
+        ## @ret - Dict containing device info
         pass
     
     def cmdWriteEnable(self):
+        ## send the write-enable command 
+        ## @ret - >??
         pass
 
     def cmdReadoutProtect(self):
+        ## send the readout protect command 
+        ## @ret - Rx data
         pass
 
     def cmdReadoutProtectOff(self):
+        ## send the readout protect off command 
+        ## @ret - Rx data
         pass
 
     def cmdGoToAddress(self, address):
+        ## send the Go command 
+        ## @ret - Rx data
         pass
 
+    def writeToAddress(self, data, address):
+        ## write data to address on device 
+        ## @ret - ??
+        pass
 
+    def loadFlash(self, data, address):
+        ## load a flash program to the device at address 
+        ## @ret - Rx data
+        pass
 
+    def flashAndGo(self, data, address):
+        ## load a flash program to address and execute
+        ## @ret ??
+        pass
 
+    def readFlashFromAddress(self, length, address):
+        ## read the flash starting at address, length bytes
+        # @ret ??
+        pass
+
+    def dumpFlash(self):
+        ## read the entire flash
+        # @ret flash contents
+        pass
+
+    def dumpFlashToFile(self, file):
+        ## read the entire flash and dump to file
+        # @ret success/fail 
+        pass
+
+    def checkAddressInRange(self, address):
+        ## check if address is valid
+        # @ret true/false 
+        pass
+
+    def checkCandidateExecutable(self, exe):
+        ## check if exe is valid 
+        # @ret true/false 
+        pass
 

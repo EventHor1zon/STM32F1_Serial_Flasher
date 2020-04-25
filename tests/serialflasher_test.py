@@ -33,8 +33,21 @@ class SerialFlasherTestCase(unittest.TestCase):
             self.sf.openPort()
         except:
             print("Error Opening port!")
+            return 0
         return 1
 
+    def openPortWithHandshake(self):
+        try:
+            self.openPort()
+            self.sf.writeDevice(CMD_HANDSHAKE)
+            a = self.sf.readDevice(1)
+            if a != STM_ACK:
+                print("[!] Handshake ACK failed ")
+                return 0
+        except:
+            print("[!] Error Opening serial port")
+            return 0
+        return 1
 
     ## test the initliser values
     def testInvalidLowBaud(self):
@@ -70,6 +83,15 @@ class SerialFlasherTestCase(unittest.TestCase):
     def testOpenPortNoneSet(self):
         self.assertFalse(self.sf.openPort())
 
+    def testClosePort(self):
+        self.openPort()
+        a = self.sf.ser.is_open
+        self.assertEqual(a, True)
+        self.sf.close()
+        b = self.sf.ser.is_open
+        self.assertNotEqual(a, b)
+
+
     def testGetTimeout(self):
         a = self.sf.getTimeout()
         self.assertIsInstance(a, float)
@@ -102,7 +124,14 @@ class SerialFlasherTestCase(unittest.TestCase):
         ## test against file?? 
         ## test against virtual serial port? 
         self.assertEqual(1, 1)
-        
+    
+    def testCheckRxForAck(self):
+        a = bytearray([0x79, 0x01, 0x02])
+        b = bytearray([0x00, 0x01, 0x02])
+        x = self.sf.checkRxForAck(a)
+        y = self.sf.checkRxForAck(b)
+        self.assertTrue(x)
+        self.assertFalse(y)
 
     def testSendHandshake(self):
         # this is above - cant do twice in a row
@@ -112,7 +141,24 @@ class SerialFlasherTestCase(unittest.TestCase):
         self.assertIsInstance(a, (bytearray, bytes))
         self.assertTrue(len(a) > 0)
         self.assertEqual(a, STM_ACK)
-    
+
+    def testCmdGetInfo(self):
+        self.openPortWithHandshake()
+        a = self.sf.cmdGetInfo()
+        self.assertIsInstance(a, (bytearray, bytes))
+        self.assertTrue(len(a) > 0)
+
+    def testCmdGetVersionProt(self):
+        self.openPortWithHandshake()
+        a = self.sf.cmdGetVersionProt()
+        self.assertIsInstance(a, (bytes, bytearray))
+        self.assertTrue(len(a) > 0)
+
+    def testGetDeviceInfo(self):
+        self.openPortWithHandshake()
+        a = self.sf.getDeviceInfo()
+        self.assertIsInstance(a, dict)
+            
     
 
 
