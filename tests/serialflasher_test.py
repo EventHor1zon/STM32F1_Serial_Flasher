@@ -1,11 +1,20 @@
 ## @file serialflasher_test.py
 #
 #   unit tests for the SerialFlasher class
+#
+#   As a super cheeky way of generating resets on the board 
+#   (reset of each test means handshake each time which breaks stuff)
+#   is to use a second MCU on a second serial port to reset the device
+#   
+#   For my tests am using an ESP32 programmed with arduino-style code
+#   included with these tests.
+
 
 
 DEFAULT_BAUD = 9600
 VALID_PORT = "/dev/ttyUSB0"
 INVALID_PORT = "/dev/ttyS0"
+CHEEKY_RESET_PORT = "/dev/ttyUSB1"
 
 CMD_HANDSHAKE = b'\x7F'
 STM_ACK = b'\x79'
@@ -15,14 +24,24 @@ import serial
 import STM_SerialFlasher.SerialFlasher as SF
 import sys
 
+
+## Global scoped reset object 
+
+
+
+
 class SerialFlasherTestCase(unittest.TestCase):
 
     def setUp(self):
+        self.resetFlag = 0
         self.sf = SF.SerialTool()
     
     def tearDown(self):
         ## on teardown, close the socket
+        # and reset the device if neccessary
         self.sf.close()
+        if self.resetFlag:
+            self.resetWithExternalDevice()
 
     ## Utility functions 
 
@@ -47,7 +66,20 @@ class SerialFlasherTestCase(unittest.TestCase):
         except:
             print("[!] Error Opening serial port")
             return 0
+        self.resetFlag = 1
         return 1
+
+    def resetWithExternalDevice(self):
+        ## uses an external device to reset the test device?
+        # @ret True/False
+        try:
+            reset_serial = serial.Serial(port=CHEEKY_RESET_PORT, write_timeout=1, timeout=1)
+            reset_serial.write(b'\x33')
+            reset_serial.close()
+            return True
+        except serial.SerialException:
+            print("[!] Unable to open the reset device serial")
+            return False
 
     ## test the initliser values
     def testInvalidLowBaud(self):
@@ -134,8 +166,6 @@ class SerialFlasherTestCase(unittest.TestCase):
         self.assertFalse(y)
 
     def testSendHandshake(self):
-        # this is above - cant do twice in a row
-        # assume success here implies read success?
         self.openPort()
         a = self.sf.sendHandshake()
         self.assertIsInstance(a, (bytearray, bytes))
@@ -153,12 +183,18 @@ class SerialFlasherTestCase(unittest.TestCase):
         a = self.sf.cmdGetVersionProt()
         self.assertIsInstance(a, (bytes, bytearray))
         self.assertTrue(len(a) > 0)
+        
+    def testCmdGetDeviceId(self):
+        self.openPortWithHandshake()
+        a = self.sf.cmdGetDeviceID()
+        self.assertIsInstance(a, int)
+        self.assertGreater(a, 0x03FF)   # min val is 0x0400
+        self.assertLess(a, 0x0500)      ## max val is 0x04FF
 
     def testGetDeviceInfo(self):
         self.openPortWithHandshake()
         a = self.sf.getDeviceInfo()
         self.assertIsInstance(a, dict)
-            
-    
-
-
+        for key in self.sf.deviceInfo:
+            self.assertIn(key, a.keys())
+            self.assertNotEqual(a[key], None)

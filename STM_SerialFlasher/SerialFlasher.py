@@ -38,20 +38,25 @@ CMD_HANDSHAKE = b'\x7F'
 STM_ACK = b'\x79'
 STM_NACK = b'\x1F'
 
+ADDRESS_OPT_BYTES = bytearray(b'\x1F\xFF\xF8\x00')
+ADDRESS_DEFAULT_CODESPACE = bytearray(b'\x80\x00\x00\x00')
+ADDRESS_SCB_RST_OFFSET = 0x0C
+SCB_RESET_REQUEST_VALUE = bytearray(b'\xfa\x05\x00\x04')
+
 CFG_WRITE_TIMEOUT = 1
 
 
-device_info = {
+
+
+class SerialTool:
+
+    self.deviceInfo = {
     'v_bootloader':0,
     'supported_commands':[],
     'readProtectionState':0,
     'readAccesses':0,
     'device_id':0,
-    
-}
-
-
-class SerialTool:
+    }
     
     def __init__(self, port=None, baud=9600):
         self.ser = serial.Serial(port=None)
@@ -184,6 +189,11 @@ class SerialTool:
     def cmdGetVersionProt(self):
         ## send the Version/ReadProtection command 
         ## @ret - Rx data
+        pass
+
+    def cmdGetDeviceID(self):
+        ## send the Get ID command
+        # @ret - device ID
         pass
 
     def getDeviceInfo(self):
