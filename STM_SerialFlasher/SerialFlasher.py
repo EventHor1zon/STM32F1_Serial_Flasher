@@ -9,6 +9,7 @@
 #
 
 import sys
+import struct
 import serial
 import binascii
 
@@ -50,7 +51,7 @@ CFG_WRITE_TIMEOUT = 1
 
 class SerialTool:
 
-    self.deviceInfo = {
+    deviceInfo = {
     'v_bootloader':0,
     'supported_commands':[],
     'readProtectionState':0,
@@ -147,7 +148,9 @@ class SerialTool:
             return 0
 
     def readDevice(self, len):
-        ##
+        ## read len bytes from device
+        # @ret rx bytes
+
         if not self.ser.is_open:
             print("[!] Error, serial port is closed")
             return 0
@@ -157,13 +160,14 @@ class SerialTool:
             print("[!] Error in reading from serial port")
         except serial.SerialTimeoutException:
             print("[!] Error - timeout in reading from serial port")
-        finally:
+        finally: 
             return rx
 
     def checkRxForAck(self, data):
         ## check the first byte of data for ack
         # @ret True/False 
         pass
+    
 
     def sendHandshake(self):
         try:

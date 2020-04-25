@@ -23,11 +23,7 @@ import unittest
 import serial
 import STM_SerialFlasher.SerialFlasher as SF
 import sys
-
-
-## Global scoped reset object 
-
-
+from time import sleep
 
 
 class SerialFlasherTestCase(unittest.TestCase):
@@ -61,10 +57,10 @@ class SerialFlasherTestCase(unittest.TestCase):
             self.sf.writeDevice(CMD_HANDSHAKE)
             a = self.sf.readDevice(1)
             if a != STM_ACK:
-                print("[!] Handshake ACK failed ")
+                print("[***] Handshake ACK failed " + hex(a))
                 return 0
         except:
-            print("[!] Error Opening serial port")
+            print("[***] Error Opening serial port")
             return 0
         self.resetFlag = 1
         return 1
@@ -76,6 +72,8 @@ class SerialFlasherTestCase(unittest.TestCase):
             reset_serial = serial.Serial(port=CHEEKY_RESET_PORT, write_timeout=1, timeout=1)
             reset_serial.write(b'\x33')
             reset_serial.close()
+            print("[:)] Reset Device")
+            sleep(0.02)
             return True
         except serial.SerialException:
             print("[!] Unable to open the reset device serial")
@@ -97,7 +95,6 @@ class SerialFlasherTestCase(unittest.TestCase):
         a = self.sf.setBaud(baud)
         self.assertEqual(a, False)
             
-
     def testSetPortInvalidType(self):
         port = 1234
         with self.assertRaises(TypeError):
@@ -143,6 +140,7 @@ class SerialFlasherTestCase(unittest.TestCase):
         self.sf.openPort()
         a = self.sf.writeDevice(d)
         self.assertEqual(a, 1)
+        self.resetFlag = 1
 
     def testInvalidDataWriteDevice(self):
         d = [ "string", ('tupple', 1) ]
@@ -150,6 +148,7 @@ class SerialFlasherTestCase(unittest.TestCase):
         self.sf.openPort()
         a = self.sf.writeDevice(d)
         self.assertEqual(a, 0)
+        self.resetFlag
 
     def testReadPortType(self):
         ## errrr... test against device??
@@ -171,6 +170,7 @@ class SerialFlasherTestCase(unittest.TestCase):
         self.assertIsInstance(a, (bytearray, bytes))
         self.assertTrue(len(a) > 0)
         self.assertEqual(a, STM_ACK)
+        self.resetFlag = 1
 
     def testCmdGetInfo(self):
         self.openPortWithHandshake()
