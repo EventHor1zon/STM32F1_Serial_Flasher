@@ -22,11 +22,7 @@ import binascii
 #   
 
 
-class SerialFlasher:
-
-    port = None
-    baud = None
-    ser = None
+class SerialTool:
 
     def __init__(self, port=None, baud=9600):
         self.port = port
