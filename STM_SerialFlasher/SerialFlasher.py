@@ -8,6 +8,7 @@
 #   Also builds a profile of the device and its settings. 
 #
 
+import sys
 import serial
 import binascii
 
@@ -19,7 +20,7 @@ import binascii
 #
 #   @param serial_port  - the name of the serial port to connect over
 #   @param baud         - baud rate of connection. Use common rates, 1200 - 115200 inclusive.
-#   
+
 
 
 class SerialTool:
