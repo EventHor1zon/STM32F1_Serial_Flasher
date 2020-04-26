@@ -27,7 +27,7 @@ while [ 1 ]; do
 	sleep 1
     else
 	clear
-	sudo python -m unittest $TESTFILE
+	sudo python3 -m unittest $TESTFILE
 	LASTMD5=$MDFIVE
 	sleep 1
     fi

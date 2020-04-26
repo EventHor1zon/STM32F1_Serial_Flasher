@@ -166,8 +166,20 @@ class SerialTool:
     def checkRxForAck(self, data):
         ## check the first byte of data for ack
         # @ret True/False 
-        pass
-    
+        if(type(data) != bytes and type(data) != bytearray):
+            print("[!] Error: Invalid data type")
+            return False
+        elif len(data) < 1:
+            print("[!] Error: Data is empty")
+            return False
+        else:
+            a = data[0]
+            b = bytes([a])
+            if b == STM_ACK:
+                return True 
+            else:
+                return False
+
 
     def sendHandshake(self):
         try:

@@ -29,6 +29,8 @@ from time import sleep
 class SerialFlasherTestCase(unittest.TestCase):
 
     def setUp(self):
+        import sys
+        print(sys.version)
         self.resetFlag = 0
         self.sf = SF.SerialTool()
     
@@ -157,10 +159,10 @@ class SerialFlasherTestCase(unittest.TestCase):
         self.assertEqual(1, 1)
     
     def testCheckRxForAck(self):
-        a = bytearray([0x79, 0x01, 0x02])
-        b = bytearray([0x00, 0x01, 0x02])
-        x = self.sf.checkRxForAck(a)
-        y = self.sf.checkRxForAck(b)
+        a = bytes([0x79, 0x00, 0x33])
+        b = bytearray([0x79, 0x01, 0x02])
+        x = self.sf.checkRxForAck(a)    # should return true
+        y = self.sf.checkRxForAck(b)    # should return false
         self.assertTrue(x)
         self.assertFalse(y)
 
