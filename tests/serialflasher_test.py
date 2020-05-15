@@ -29,8 +29,11 @@ from time import sleep
 class SerialFlasherTestCase(unittest.TestCase):
 
     def setUp(self):
-        import sys
-        print(sys.version)
+        rst = 1
+        while(rst):
+            if self.resetWithExternalDevice():
+                rst = 0
+        sleep(0.2)
         self.resetFlag = 0
         self.sf = SF.SerialTool()
     
@@ -62,7 +65,6 @@ class SerialFlasherTestCase(unittest.TestCase):
                 print("[***] Handshake ACK failed " + hex(a))
                 return 0
         except:
-            print("[***] Error Opening serial port")
             return 0
         self.resetFlag = 1
         return 1
@@ -78,6 +80,7 @@ class SerialFlasherTestCase(unittest.TestCase):
             sleep(0.02)
             return True
         except serial.SerialException:
+            reset_serial.close()
             print("[!] Unable to open the reset device serial")
             return False
 
@@ -200,3 +203,5 @@ class SerialFlasherTestCase(unittest.TestCase):
         for key in self.sf.deviceInfo:
             self.assertIn(key, a.keys())
             self.assertNotEqual(a[key], None)
+
+    

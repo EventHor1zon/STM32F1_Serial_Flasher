@@ -64,6 +64,7 @@ class SerialTool:
         self.port = port
         self.baud = baud
         self.timeout = 1
+        self.handshake_complete = 0
 
     def getBaud(self):
         return self.baud
@@ -122,11 +123,15 @@ class SerialTool:
         spb = float(1) / float(self.baud)
         return 100 * spb
 
-    def getSerialState(self):
+    def utilGetSerialState(self):
         if self.ser == None:
             return 0
         else:
             return self.ser.is_open
+
+    def utilAddCrc(self, data):
+        if type(data) != bytearray and type(data) != bytes:
+            raise ValueError
 
     def writeDevice(self, data):
         ## sanity check data, return serial.write
@@ -147,21 +152,26 @@ class SerialTool:
             print("[!] Data type Error")
             return 0
 
-    def readDevice(self, len):
+    def readDevice(self, length):
         ## read len bytes from device
-        # @ret rx bytes
+        # @ret bytes read,rx bytes
 
+        rx = b''
+        bytes_read = 0
         if not self.ser.is_open:
             print("[!] Error, serial port is closed")
             return 0
-        try:
-            rx = self.ser.read(len)
-        except serial.SerialException:
-            print("[!] Error in reading from serial port")
-        except serial.SerialTimeoutException:
-            print("[!] Error - timeout in reading from serial port")
-        finally: 
-            return rx
+        for i in range(length):    
+            try:   
+                rx += self.ser.read(1)
+                bytes_read += 1
+            except serial.SerialException:
+                print("[!] Error in reading from serial port")
+                break 
+            except serial.SerialTimeoutException:
+                break
+        
+        return bytes_read,rx
 
     def checkRxForAck(self, data):
         ## check the first byte of data for ack
@@ -185,9 +195,10 @@ class SerialTool:
         try:
             if self.ser.is_open:
                 self.writeDevice(CMD_HANDSHAKE)
-                rx = self.readDevice(1)
+                rx_len,rx = self.readDevice(1)
                 if rx == STM_ACK:
                     print("[+] Handshake Success!")
+                    self.handshake_complete = 1
                     return rx
                 else:
                     print("[!] Handshake failed")
@@ -200,12 +211,33 @@ class SerialTool:
     def cmdGetInfo(self):
         ## send the Get Info command 
         ## @ret - Rx data
-        pass
+        empty = b''
+        if not self.ser.is_open:
+            return empty
+        if not self.handshake_complete:
+            self.sendHandshake()
+
+        crc = ~CMD_GET
+        commands = bytearray([CMD_GET, crc])
+        self.ser.write(commands)
+        rx_len,rx = self.readDevice(16)
+
+        return rx_len,rx
 
     def cmdGetVersionProt(self):
         ## send the Version/ReadProtection command 
         ## @ret - Rx data
-        pass
+        empty = b''
+        if not self.ser.is_open:
+            return empty
+        if not self.handshake_complete:
+            self.sendHandshake()
+        commands = bytearray([CMD_BOOT_RP])
+        self.utilAddCrc(commands)
+        self.writeDevice(commands)
+        rx_len, rx = self.readDevice(32)
+        
+        return rx_len, rx
 
     def cmdGetDeviceID(self):
         ## send the Get ID command
