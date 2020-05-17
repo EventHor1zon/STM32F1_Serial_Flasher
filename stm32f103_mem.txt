@@ -1,0 +1,18 @@
+stm32f103 readable addresses:
+
+0x0000 0000 - aliased to flash or system memory dep. BOOT pins
+
+0x0800 0000 - Flash memory ~~~~
+
+0x0801 FFFF - Resvd
+
+0x1FFF F000 - System mem ~~~~~~
+
+0x1FFF F800 - Opt bytes ~~~~~~~
+
+0x1FFF F80F - Resvd
+
+0x2000 0000 - SRAM ~~~~~~~~~
+
+0x2000 ???? - Resvd
+

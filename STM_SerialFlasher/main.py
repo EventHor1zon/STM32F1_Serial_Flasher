@@ -1,10 +1,10 @@
-from SerialFlasher import *
+from . import SerialFlasher as Sf
 
 
 def main():
     print("1")
 
-    s = SerialFlasher()
+    s = Sf.SerialTool()
     
 
 

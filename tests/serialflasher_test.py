@@ -133,10 +133,10 @@ class SerialFlasherTestCase(unittest.TestCase):
         self.assertLess(a, 0.085)      # ~ 1 / 1200  * 100
 
     def testGetSerialState(self):
-        self.assertEqual(self.sf.getSerialState(), False)
+        self.assertEqual(self.sf.utilGetSerialState(), False)
         self.sf.setPort(VALID_PORT)
         self.sf.openPort()
-        a=self.sf.getSerialState()
+        a=self.sf.utilGetSerialState()
         self.assertEqual(a, True)
 
     def testValidWriteDevice(self):
