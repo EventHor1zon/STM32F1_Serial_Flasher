@@ -25,12 +25,31 @@ import binascii
 BAUD = 57600
 TIMEOUT_SPB_MOD = 30
 
+STM32_ADDR_LEN = 4
+
+STM32F103_FLASH_START = 0x08000000
+STM32F103_FLASH_SIZE = 0xFFFF
+STM32F103_FLASH_END = STM32F103_FLASH_START + STM32F103_FLASH_SIZE
+
+STM32F103_SYSMEM_START = 0x1FFFF000
+STM32F103_SYSMEM_SIZE = 0x800
+STM32F103_SYSMEM_END = STM32F103_SYSMEM_START + STM32F103_SYSMEM_SIZE
+
+STM32F103_OPTBYTES_START = 0x1FFFF800
+STM32F103_OPTBYTES_SIZE = 0x0F
+STM32F103_OPTBYTES_END = STM32F103_OPTBYTES_START + STM32F103_OPTBYTES_SIZE
+
+STM32F103_SRAM_START = 0x20000000
+STM32F103_SRAM_SIZE = 0x4E20  # TODO: CHECK THIS!
+STM32F103_SRAM_END = STM32F103_SRAM_START + STM32F103_SRAM_SIZE
+
 CMD_GET = b"\x00"
 CMD_GET_RXLEN = 15
 CMD_BOOT_RP = b"\x01"
 CMD_BOOTRP_RXLEN = 5
 CMD_ID = b"\x02"
 CMD_ID_RXLEN = 5
+CMD_READ = b"\x11"
 CMD_READOUT_LOCK = b"\x82"
 CMD_READOUT_EN = b"\x92"
 CMD_WRITE_PROT = b"\x63"
@@ -134,6 +153,24 @@ class SerialTool:
         spb = float(1) / float(self.baud)
         return 100 * spb
 
+    def utilValidAddress(self, address):
+        # check address is within a valid range
+        ## currently just flash, sram, sys, optbytes etc
+        ## TODO: Expand valid addresses later
+
+        valid = 1
+        if address < STM32F103_FLASH_START:
+            valid = 0
+        elif address > STM32F103_FLASH_END and address < STM32F103_SYSMEM_START:
+            valid = 0
+        elif address > STM32F103_OPTBYTES_END and address < STM32F103_SRAM_START:
+            valid = 0
+        elif address > STM32F103_SRAM_END:
+            valid = 0
+        else:
+            valid = 1
+        return valid
+
     def utilGetSerialState(self):
         if self.ser == None:
             return 0
@@ -143,8 +180,14 @@ class SerialTool:
     def utilAddCrc(self, data):
         if type(data) != bytearray and type(data) != bytes:
             raise ValueError
-        checksum = ~data[0]
-        data.append(checksum)
+        csum = 0
+        for byte in data:
+            csum += byte
+        checksum = csum % 256
+        if type(data) == bytearray:
+            data.append(checksum)
+        else:
+            data += bytes([checksum])
         return data
 
     def utilUnpackDevInfo(self, info, blvp, devid):
@@ -206,25 +249,29 @@ class SerialTool:
     def readDevice(self, length):
         ## read len bytes from device
         # @ret bytes read,rx bytes
-
         rx = b""
         bytes_read = 0
+        read_len = length
         if not self.ser.is_open:
             print("[!] Error, serial port is closed")
             return 0
-        while length:  # try to read length bytes
+        while read_len:  # try to read length bytes
             try:
                 rx += self.ser.read(1)
                 bytes_read += 1
+                if bytes_read == 1:
+                    if not self.checkAckOrNack(rx):
+                        print("[!] Error - NACK recieved from device")
+                        return rx
             except serial.SerialTimeoutException:
                 break
             except serial.SerialException as e:
                 print("[!] Error in reading from serial {" + e + "}")
                 break
-            length -= 1
+            read_len -= 1
         return bytes_read, rx
 
-    def checkRxForAck(self, data):
+    def checkAckOrNack(self, data):
         ## check the first byte of data for ack
         # @ret True/False
         if type(data) != bytes and type(data) != bytearray:
@@ -238,8 +285,10 @@ class SerialTool:
             b = bytes([a])
             if b == STM_ACK:
                 return True
-            else:
+            elif b == STM_NACK:
                 return False
+            else:
+                raise ValueError
 
     def sendHandshake(self):
         try:
@@ -267,7 +316,7 @@ class SerialTool:
             return empty
         if not self.handshake_complete:
             self.sendHandshake()
-        command_crc = self.utilAddCrc(commands)
+        command_crc = self.utilAddCrc(command)
         self.ser.write(command_crc)
         rx_len, rx = self.readDevice(read_len)
         return rx_len, rx
@@ -303,7 +352,6 @@ class SerialTool:
         devid_len, devid = self.cmdGetDeviceID()
 
         self.utilUnpackDevInfo(info, blvp, devid)
-
         return self.deviceInfo
 
     def cmdWriteEnable(self):
@@ -341,14 +389,61 @@ class SerialTool:
         ## @ret ??
         pass
 
-    def readFlashFromAddress(self, length, address):
-        ## read the flash starting at address, length bytes
-        # @ret ??
-        pass
+    def readFromAddress(self, length, address):
+        ## read the memory starting at address, length bytes
+        ## limit to Valid flash/sysmem/sram etc
+        # @ret data
+        if not self.utilValidAddress(address) or not self.utilValidAddress(
+            address + length
+        ):
+            print("[!] Invalid address range!")
+            return 0
+
+        read_address = address
+        read_len = length
+
+        # itterate read loop for ((len / 256) + 1 times)
+        while read_len:
+            read_address = address + (length - read_len)
+            # send read command
+            command = bytearray([CMD_READ])
+            a32 = struct.pack(">I", read_address)
+            a32crc = self.utilAddCrc(a32)
+
+            # send read command
+            cmd_len, cmd_data = self.sendCommand(command, 1)
+            buffer = ""
+            if not self.checkAckOrNack(cmd_data):
+                print("[!] Error! Received a NACK from device! ")
+                return buffer
+
+            # send address
+            self.writeDevice(a32crc)
+            raddr_l, raddr_d = self.readDevice(1)
+
+            if not self.checkAckOrNack(raddr_d):
+                print("[!] Error! Recieved a NACK from the device!!!")
+                return buffer
+            # read this num of bytes
+            rlen = 0
+            if read_len / 256 > 1:
+                rlen = 256
+            elif read_len % 256 > 0:
+                rlen = read_len % 256
+            else:
+                rlen = 0
+            read_len -= rlen
+            if read_len:
+                n32 = struct.pack(">I", rlen)
+                n32crc = self.utilAddCrc(n32)
+                self.writeDevice(n32crc)
+
+            # write number of bytes to read
 
     def dumpFlash(self):
         ## read the entire flash
         # @ret flash contents
+
         pass
 
     def dumpFlashToFile(self, file):
