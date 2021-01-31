@@ -107,8 +107,6 @@ class SerialTool:
     def getPort(self):
         if self.port == None:
             return ""
-        elif not isinstance(self.port, str):
-            raise TypeError
         else:
             return self.port
 
@@ -140,7 +138,7 @@ class SerialTool:
                 + "] with Baud "
                 + str(self.baud)
             )
-            raise serial.SerialException
+            return False
         return True
 
     def close(self):
@@ -286,7 +284,7 @@ class SerialTool:
             if b == STM_ACK:
                 return True
             elif b == STM_NACK:
-                return False
+                return False  # dont return same if error?
             else:
                 raise ValueError
 
