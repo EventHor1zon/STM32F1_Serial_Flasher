@@ -11,30 +11,36 @@ STM_ACK = b'\x7F'
 
 import unittest
 import serial
-import STM_SerialFlasher.SerialFlasher as SF
+import SerialFlasher.SerialFlasher as SF
 import sys
+from time import sleep
+
+
+# a non-existent serial port
+DEVICE_SERIAL_PORT = '/dev/ttyUSB0'
+DEVICE_SERIAL_BAUD = 57600
+
+SFTEST_INVALID_SERIAL_PORT="/dev/ttyABCD"
+
+
 
 class SerialFlasherTestCase(unittest.TestCase):
 
     def setUp(self):
+        self.serial = serial.Serial(DEVICE_SERIAL_PORT, DEVICE_SERIAL_BAUD)
         self.sf = SF.SerialTool()
-    
+
     def tearDown(self):
-        ## on teardown, close the socket
-        self.sf.close()
+        """ Teardown: Close socket and reset device """
+        self.serial.close()
+        self.resetDevice()
         return super().tearDown()
 
-    ## Utility functions 
-
-    ## automate steps to open the port 
-    def openPort(self):
-        try:
-            self.sf.port = VALID_PORT
-            self.sf.openPort()
-        except:
-            print("Error Opening port!")
-            sys.exit(1)
-        return 1
+    def resetDevice(self):
+        """ uses the DTR pin of USB->Serial to reset board """
+        self.serial.setDTR(1)
+        sleep(0.001)
+        self.serial.setDTR(0)
 
 
     ## test the initliser values
@@ -43,70 +49,45 @@ class SerialFlasherTestCase(unittest.TestCase):
         with self.assertRaises(ValueError):
             self.sf.setBaud(baud)
 
+
     def testInvalidHighBaud(self):
         baud = 1000000  # too high
         with self.assertRaises(ValueError):
             self.sf.setBaud(baud)
+
 
     def testInvalidBaudType(self):
         baud = "AAA"
         with self.assertRaises(TypeError):
             self.sf.setBaud(baud)
 
+
     def testSetPortInvalidType(self):
         port = 1234
         with self.assertRaises(TypeError):
             self.sf.setPort(port)
 
-    #def testSetNonexistentPort(self):
-    #    self.sf.setPort("ABCD")
-        
 
     def testOpenPortNoneSet(self):
         self.assertFalse(self.sf.openPort())
 
     def testGetTimeout(self):
-        a = self.sf.getTimeout()
-        self.assertIsInstance(a, float)
-        self.assertGreater(a, 0.0009)  # ~ 1 / 115200  * 100
-        self.assertLess(a, 0.085)      # ~ 1 / 1200  * 100
+        pass
 
     def testGetSerialState(self):
-        self.assertEqual(self.sf.getSerialState(), False)
-        self.sf.setPort(VALID_PORT)
-        self.sf.openPort()
-        self.assertEqual(self.sf.getSerialState(), True)
+        pass
 
     def testValidWriteDevice(self):
-        d = bytearray([0x0, 0x1])
-        self.sf.setPort(VALID_PORT)
-        self.sf.openPort()
-        a = self.sf.writeDevice(d)
-        self.assertEqual(a, 2)
+        pass
 
     def testInvalidDataWriteDevice(self):
-        d = [ 40987, 100293 ]
-        self.sf.setPort(INVALID_PORT)
-        self.sf.openPort()
-        a = self.sf.writeDevice(d)
-        self.assertEqual(a, 0)
+        pass
 
     def testReadPortType(self):
-        ## errrr... test against device??
-        ## test against file?? 
-        ## test against virtual serial port? 
-        self.openPort()
-        self.sf.writeDevice(CMD_HANDSHAKE)
-        a = self.sf.readDevice(32)
-        self.assertIsInstance(a, (bytearray, bytes))
-        self.assertTrue(len(a) > 0)
-        self.assertEqual(a[0], STM_ACK)
+        pass
 
     def testSendHandshake(self):
-        # this is above?
-        self.openPort()
-        a = self.sf.sendHandshake()
-        self.assertEqual(a, STM_ACK)
+        pass
         
 
     
