@@ -51,22 +51,57 @@ class SerialFlasherTestCase(unittest.TestCase):
         self.serial.setDTR(0)
 
     def testGetBaud(self):
-        a = self.sf.baud
+        """ test we can get the baud property """
+        a = self.sf.getBaud()
         self.assertEqual(a, DEVICE_SERIAL_BAUD)
 
+    def testSetBaudValid(self):
+        """ test we can set valid baud """
+        b = 9600
+        a = self.sf.setBaud(b)
+        self.assertTrue(a)
+
+    def testSetBaudTooLow(self):
+        """ test setting baud below min raises value error """
+        b = 1199
+        with self.assertRaises(ValueError):
+            self.sf.setBaud(b)
+
+    def testSetBaudTooHigh(self):
+        """ test setting baud above max raises value error """
+        b = 115201
+        with self.assertRaises(ValueError):
+            self.sf.setBaud(b)
+
+    def testGetPort(self):
+        p = self.sf.getPort()
+        self.assertEqual(p, DEVICE_SERIAL_PORT)
+
+
     def testGetTimeout(self):
+        """ test we can get the serial timeout """
         base = self.serial.timeout
         a = self.sf.getSerialTimeout()
         self.assertEqual(base, a)
 
     def testGetSerialState(self):
+        """ test we can get the serial state """
         state = self.serial.is_open
         a = self.sf.getSerialState()
         self.assertEqual(state, a)
 
     def testConnect(self):
+        """ test we can connect to the device """
         a = self.sf.connect()
         self.assertTrue(a)
         self.assertTrue(self.sf.connected)
 
+    def testDisconnect(self):
+        """ test we can disconnect from the device and close the serial port """
+        pass
 
+    def testSetBaudWhilstConnected(self):
+        """ test that setting baud whilst connected returns false """
+        pass
+
+    

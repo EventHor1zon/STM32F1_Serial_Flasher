@@ -1,11 +1,11 @@
 ##
 #  @file  Serial_Flasher.py
-#  
-#   Description: Python module creates an object with methods for 
-#   interacting with the STM32 F1 line of microcontrollers via the 
+#
+#   Description: Python module creates an object with methods for
+#   interacting with the STM32 F1 line of microcontrollers via the
 #   Bootloader's serial interface.
-# 
-#   Also builds a profile of the device and its settings. 
+#
+#   Also builds a profile of the device and its settings.
 #
 
 import sys
@@ -15,9 +15,9 @@ import binascii
 
 ## SerialFlasher Class
 #   This class represents the object used to interface
-#   with the microcontroller. 
-#   
-#   methods:    
+#   with the microcontroller.
+#
+#   methods:
 #
 #   @param serial_port  - the name of the serial port to connect over
 #   @param baud         - baud rate of connection. Use common rates, 1200 - 115200 inclusive.
@@ -29,41 +29,48 @@ valid_bauds = [
     460800,
 ]
 
-class SerialTool():
+
+class SerialTool:
+
+    connected = False
 
     @staticmethod
     def checkBaudValid(baud):
         pass
 
-
-    def __init__(self, port=None, baud: int=9600, s: Serial=None):
-        if s is not None:
-            self.serial = s
-            self.port = s.port
-            self.baud = s.baud
+    def __init__(self, port=None, baud: int = 9600, serial: Serial = None):
+        if serial is not None:
+            self.serial = serial
+            self.port = serial.port
+            self.baud = serial.baudrate
+        elif port is None:
+            raise TypeError("Need a port or Serial object")
         else:
             self.port = port
             self.baud = baud
-            self.serial = Serial(port, baud)
+            self.serial = Serial(port, baud, timeout=1.0, write_timeout=1.0)
 
-
-    def baud(self):
+    def getBaud(self):
         return self.baud
 
     def setBaud(self, baud):
-        pass
-
+        if self.connected == True:
+            return False
+        elif baud > 115200 or baud < 1200:
+            raise ValueError("Baud rate max: 115200bps, min: 1200bps")
+        else:
+            self.serial.baudrate = baud
+        return True
 
     def getPort(self):
         pass
 
-
     def connect(self):
-        """ connect to the STM chip """
+        """connect to the STM chip"""
         pass
 
     def disconnect(self):
-        """ close the socket """
+        """close the socket"""
         pass
 
     def setSerialTimeout(self, timeout):
@@ -73,33 +80,33 @@ class SerialTool():
         pass
 
     def getSerialState(self):
-        """ get serial state """
+        """get serial state"""
         pass
 
     def getConnectedState(self):
-        """ get the connected state """
+        """get the connected state"""
         pass
 
     def writeDevice(self, data):
-        """ write data to the device 
-            this should be a staticmethod?
+        """write data to the device
+        this should be a staticmethod?
         """
         pass
 
     def readDevice(self, len):
-        """ attempt to read len bytes from the device 
-            return read_len, bytes
+        """attempt to read len bytes from the device
+        return read_len, bytes
         """
         pass
 
     def cmdGetInfo(self):
-        """ get the device information """
+        """get the device information"""
         pass
 
     def cmdGetVersionProt(self):
-        """ get the device's bootloader protocol version """
+        """get the device's bootloader protocol version"""
         pass
-    
+
     def cmdWriteEnable(self):
         """ """
         pass
@@ -112,8 +119,3 @@ class SerialTool():
 
     def cmdGoToAddress(self, address):
         pass
-
-
-
-
-
