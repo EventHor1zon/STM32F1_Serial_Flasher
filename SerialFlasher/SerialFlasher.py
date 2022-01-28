@@ -22,7 +22,7 @@ import binascii
 #   @param serial_port  - the name of the serial port to connect over
 #   @param baud         - baud rate of connection. Use common rates, 1200 - 115200 inclusive.
 
-common_bauds = [
+valid_bauds = [
     9600,
     57600,
     115200,
@@ -36,18 +36,21 @@ class SerialTool():
         pass
 
 
-    def __init__(self, port, baud: int=9600, s: Serial=None):
+    def __init__(self, port=None, baud: int=9600, s: Serial=None):
         if s is not None:
             self.serial = s
             self.port = s.port
             self.baud = s.baud
-        else:        
+        else:
             self.port = port
             self.baud = baud
             self.serial = Serial(port, baud)
 
 
-    def getBaud(self):
+    def baud(self):
+        return self.baud
+
+    def setBaud(self, baud):
         pass
 
 
@@ -63,6 +66,11 @@ class SerialTool():
         """ close the socket """
         pass
 
+    def setSerialTimeout(self, timeout):
+        pass
+
+    def getSerialTimeout(self):
+        pass
 
     def getSerialState(self):
         """ get serial state """
@@ -89,9 +97,11 @@ class SerialTool():
         pass
 
     def cmdGetVersionProt(self):
+        """ get the device's bootloader protocol version """
         pass
     
     def cmdWriteEnable(self):
+        """ """
         pass
 
     def cmdReadoutProtect(self):
