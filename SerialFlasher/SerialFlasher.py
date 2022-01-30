@@ -9,7 +9,7 @@
 #
 
 import sys
-from serial import Serial, SerialTimeoutException, SerialException
+from serial import Serial, SerialTimeoutException, SerialException, PARITY_EVEN
 import binascii
 
 
@@ -28,6 +28,9 @@ valid_bauds = [
     115200,
     460800,
 ]
+
+STM_CMD_HANDSHAKE = 0x7F
+STM_CMD_ACK = 0x79
 
 
 class SerialTool:
@@ -49,11 +52,13 @@ class SerialTool:
             self.port = port
             self.baud = baud
             self.serial = Serial(port, baud, timeout=1.0, write_timeout=1.0)
+        self.serial.parity = PARITY_EVEN
+        self.serial.setDTR(False)
 
     def getBaud(self):
         return self.baud
 
-    def setBaud(self, baud):
+    def setBaud(self, baud: int):
         if self.connected == True:
             return False
         elif baud > 115200 or baud < 1200:
@@ -63,41 +68,57 @@ class SerialTool:
         return True
 
     def getPort(self):
-        pass
+        return self.serial.port
 
-    def connect(self):
-        """connect to the STM chip"""
-        pass
-
-    def disconnect(self):
-        """close the socket"""
-        pass
-
-    def setSerialTimeout(self, timeout):
-        pass
+    def setSerialReadWriteTimeout(self, timeout: float):
+        self.serial.timeout = timeout
+        self.serial.write_timeout = timeout
 
     def getSerialTimeout(self):
-        pass
+        return self.serial.timeout
 
     def getSerialState(self):
         """get serial state"""
-        pass
+        return self.serial.is_open
 
     def getConnectedState(self):
         """get the connected state"""
-        pass
+        return self.connected
 
-    def writeDevice(self, data):
+    def writeDevice(self, data: bytearray):
         """write data to the device
         this should be a staticmethod?
         """
-        pass
+        tx = self.serial.write(data)
+        if tx != len(data):
+            return False
+        return True
 
-    def readDevice(self, len):
+    def readDevice(self, length):
         """attempt to read len bytes from the device
         return read_len, bytes
         """
-        pass
+        rx = self.serial.read(length)
+        return (len(rx) == length), rx
+
+    def connect(self):
+        """connect to the STM chip"""
+        self.writeDevice(bytearray([STM_CMD_HANDSHAKE]))
+        success, data = self.readDevice(1)
+        if not success:
+            return False
+        elif data[0] != STM_CMD_ACK:
+            return False
+        else:
+            self.connected = True
+            return True
+
+
+
+    def disconnect(self):
+        """close the socket"""
+        self.serial.close()
+
 
     def cmdGetInfo(self):
         """get the device information"""

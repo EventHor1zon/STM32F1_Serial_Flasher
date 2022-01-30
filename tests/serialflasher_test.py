@@ -34,6 +34,7 @@ class SerialFlasherTestCase(unittest.TestCase):
             timeout=DEVICE_SERIAL_RD_TIMEOUT_S,
             write_timeout=DEVICE_SERIAL_WRT_TIMEOUT_S,
         )
+        self.serial.setDTR(False)
         self.sf = SF.SerialTool(
             serial=self.serial
         )
@@ -74,15 +75,22 @@ class SerialFlasherTestCase(unittest.TestCase):
             self.sf.setBaud(b)
 
     def testGetPort(self):
+        """ test we can get the connected port """
         p = self.sf.getPort()
         self.assertEqual(p, DEVICE_SERIAL_PORT)
-
 
     def testGetTimeout(self):
         """ test we can get the serial timeout """
         base = self.serial.timeout
         a = self.sf.getSerialTimeout()
         self.assertEqual(base, a)
+
+    def testSetSerialTimeout(self):
+        """ test we can set the serial timeout """
+        t = 1.2
+        self.sf.setSerialReadWriteTimeout(t)
+        base = self.serial.timeout
+        self.assertAlmostEqual(t, base)
 
     def testGetSerialState(self):
         """ test we can get the serial state """
@@ -94,14 +102,22 @@ class SerialFlasherTestCase(unittest.TestCase):
         """ test we can connect to the device """
         a = self.sf.connect()
         self.assertTrue(a)
+
+    def testConnectedState(self):
+        a = self.sf.connect()
         self.assertTrue(self.sf.connected)
 
     def testDisconnect(self):
         """ test we can disconnect from the device and close the serial port """
-        pass
+        a = self.sf.connect()
+        self.sf.disconnect()
+        self.assertFalse(self.sf.connected)
+        self.assertFalse(self.serial.is_open)
 
     def testSetBaudWhilstConnected(self):
         """ test that setting baud whilst connected returns false """
-        pass
+        self.sf.connect()
+        a = self.sf.setBaud(DEVICE_SERIAL_BAUD)
+        self.assertFalse(a)
 
     
