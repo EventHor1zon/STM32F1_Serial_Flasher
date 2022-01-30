@@ -32,6 +32,7 @@ valid_bauds = [
 STM_CMD_HANDSHAKE = 0x7F
 STM_CMD_ACK = 0x79
 STM_CMD_NACK = 0x1F
+STM_CMD_GET = 0x00
 STM_CMD_VERSION_READ_PROTECT = 0x01
 STM_CMD_GET_ID = 0x02
 STM_CMD_READ_MEM = 0x11
@@ -47,6 +48,11 @@ STM_CMD_READOUT_PROTECT_DIS = 0x92
 STM_BYTE_END_TX = 0xFF
 
 STM_GET_RETURN_N = 0x0B
+
+
+
+class DeviceInformationNotReadError(Exception):
+    pass
 
 
 
@@ -130,12 +136,19 @@ class SerialTool:
             self.connected = True
             return True
 
-
-
     def disconnect(self):
         """close the socket"""
         self.serial.close()
 
+    def readDeviceInfo(self):
+        """ read the device information using the 
+            GET command
+        """
+        commands = bytearray([
+            STM_CMD_GET,
+            STM_BYTE_END_TX,
+        ])
+        
 
     def cmdGetInfo(self):
         """get the device information"""

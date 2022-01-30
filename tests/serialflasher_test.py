@@ -13,6 +13,24 @@ from asyncore import write
 import unittest
 import serial
 import SerialFlasher.SerialFlasher as SF
+from SerialFlasher import (
+    STM_CMD_HANDSHAKE,
+    STM_CMD_ACK,
+    STM_CMD_NACK,
+    STM_CMD_GET,
+    STM_CMD_VERSION_READ_PROTECT,
+    STM_CMD_GET_ID,
+    STM_CMD_READ_MEM,
+    STM_CMD_GO,
+    STM_CMD_WRITE_MEM,
+    STM_CMD_ERASE_MEM,
+    STM_CMD_EXT_ERASE,
+    STM_CMD_WRITE_PROTECT_EN,
+    STM_CMD_WRITE_PROTECT_DIS,
+    STM_CMD_READOUT_PROTECT_EN,
+    STM_CMD_READOUT_PROTECT_DIS,
+    DeviceInformationNotReadError,
+)
 import sys
 from time import sleep
 
@@ -22,6 +40,27 @@ DEVICE_SERIAL_PORT = "/dev/ttyUSB1"
 DEVICE_SERIAL_BAUD = 57600
 DEVICE_SERIAL_WRT_TIMEOUT_S = 1.0
 DEVICE_SERIAL_RD_TIMEOUT_S = 1.0
+
+## may have to refine this based on testing device!
+DEVICE_ID_EXPECTED = 0x92
+DEVICE_VALID_BOOTLOADER_VERSION = 1.0 
+DEVICE_VALID_CMDS = [
+    STM_CMD_HANDSHAKE,
+    STM_CMD_ACK,
+    STM_CMD_NACK,
+    STM_CMD_GET,
+    STM_CMD_VERSION_READ_PROTECT,
+    STM_CMD_GET_ID,
+    STM_CMD_READ_MEM,
+    STM_CMD_GO,
+    STM_CMD_WRITE_MEM,
+    STM_CMD_ERASE_MEM,
+    STM_CMD_EXT_ERASE,
+    STM_CMD_WRITE_PROTECT_EN,
+    STM_CMD_WRITE_PROTECT_DIS,
+    STM_CMD_READOUT_PROTECT_EN,
+    STM_CMD_READOUT_PROTECT_DIS,    
+]
 
 SFTEST_INVALID_SERIAL_PORT = "/dev/ttyABCD"
 
@@ -122,11 +161,42 @@ class SerialFlasherTestCase(unittest.TestCase):
 
     def testReadDeviceInformation(self):
         """ test we can read the device information """
-        pass
+        self.sf.connect()
+        a = self.sf.readDeviceInfo()
+        self.assertTrue(a)
 
     def testGetDeviceValidCommands(self):
-        pass
+        """ test we can get the valid device commands as a list """
+        self.sf.connect()
+        self.sf.readDeviceInfo()
+        valid_cmds = self.sf.getDeviceValidCommands()
+        self.assertListEqual(valid_cmds, DEVICE_VALID_CMDS)
 
     def testGetDeviceBootloaderVersion(self):
-        pass
+        """ test we can get the expected device bootloader """
+        self.sf.connect()
+        self.sf.readDeviceInfo()
+        bootloader_version = self.sf.getBootloaderVersion()
+        self.assertEqual(bootloader_version, DEVICE_VALID_BOOTLOADER_VERSION)
+
+    def testGetDeviceId(self):
+        self.sf.connect()
+        self.sf.readDeviceId()
+        device_id = self.sf.getDeviceId()
+        self.assertEqual(device_id, DEVICE_ID_EXPECTED)
+
+    def testGetDeviceValidCmdsBeforeRead(self):
+        """ test that getting valid commands before read raises exception """
+        with self.assertRaises(DeviceInformationNotReadError):
+            self.sf.getDeviceValidCommands()
+
+    def testGetDeviceBootloaderVersionBeforeRead(self):
+        """ test that getting bootloader version before read raises exception """
+        with self.assertRaises(DeviceInformationNotReadError):
+            self.sf.getDeviceBootloaderVersion()
+
+    def testGetDeviceIdBeforeRead(self):
+        """ test that getting device ID before read raises exception """
+        with self.assertRaises(DeviceInformationNotReadError):
+            self.sf.getDeviceId()
 
