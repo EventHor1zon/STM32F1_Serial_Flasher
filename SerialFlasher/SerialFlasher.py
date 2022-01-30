@@ -8,10 +8,11 @@
 #   Also builds a profile of the device and its settings.
 #
 
+from dataclasses import dataclass
 import sys
 from serial import Serial, SerialTimeoutException, SerialException, PARITY_EVEN
 import binascii
-
+from SerialFlasher.constants import *
 
 ## SerialFlasher Class
 #   This class represents the object used to interface
@@ -22,43 +23,50 @@ import binascii
 #   @param serial_port  - the name of the serial port to connect over
 #   @param baud         - baud rate of connection. Use common rates, 1200 - 115200 inclusive.
 
-valid_bauds = [
-    9600,
-    57600,
-    115200,
-    460800,
-]
 
-STM_CMD_HANDSHAKE = 0x7F
-STM_CMD_ACK = 0x79
-STM_CMD_NACK = 0x1F
-STM_CMD_GET = 0x00
-STM_CMD_VERSION_READ_PROTECT = 0x01
-STM_CMD_GET_ID = 0x02
-STM_CMD_READ_MEM = 0x11
-STM_CMD_GO = 0x21
-STM_CMD_WRITE_MEM = 0x31
-STM_CMD_ERASE_MEM = 0x43
-STM_CMD_EXT_ERASE = 0x44
-STM_CMD_WRITE_PROTECT_EN = 0x63
-STM_CMD_WRITE_PROTECT_DIS = 0x73
-STM_CMD_READOUT_PROTECT_EN = 0x82
-STM_CMD_READOUT_PROTECT_DIS = 0x92
+class DeviceInformation():
+    bootloader_version: int
+    valid_cmds: list
+    device_id: int
 
-STM_BYTE_END_TX = 0xFF
+    def __init__(self, bl_version: int=None, valid_cmds: list=None, dev_id: int=None):
+        self.bootloader_version = bl_version
+        self.valid_cmds = valid_cmds
+        self.device_id = dev_id
 
-STM_GET_RETURN_N = 0x0B
+    def updateFromGETrsp(self, data: bytearray):
+        self.bootloader_version = data[2]
+        self.valid_cmds = data[3:13]
+    
+    def updateFromIDrsp(self, data: bytearray):
+        pid_msb = data[2]
+        pid_lsb = data[3]
+        self.device_id = ((pid_msb << 8) | pid_lsb)
 
+    @property
+    def bootloader_version(self):
+        return self.bootloader_version
 
+    @property
+    def valid_cmds(self):
+        return self.valid_cmds
+    
+    @property
+    def device_id(self):
+        return self.device_id
 
-class DeviceInformationNotReadError(Exception):
+class InformationNotRetrieved(Exception):
     pass
-
 
 
 class SerialTool:
 
     connected = False
+    device_id_read = False
+    bootloader_read = False
+    valid_cmds_read = False
+
+    device_info = None
 
     @staticmethod
     def checkBaudValid(baud):
@@ -78,6 +86,41 @@ class SerialTool:
         self.serial.parity = PARITY_EVEN
         self.serial.setDTR(False)
 
+    def unpackDeviceInfo(self, get_rx: bytearray, id_rx:bytearray):
+        """ populate device information from a 'GET' command response 
+            bytes: 0 - ACK
+                    1 - N (11)
+                    2 - BL Vers (0 - 255)
+                    3 - cmd (0)
+                    4 - cmd (1)
+                    ...
+                    -1 - ACK
+        """ 
+        success = False
+
+        if get_rx[0] != STM_CMD_ACK:
+            print("Invalid Device info byte 1")
+        elif get_rx[-1] != STM_CMD_ACK:
+            print("Invalid device info byte 15")
+        elif id_rx[0] != STM_CMD_ACK:
+            print("Invalid device id byte 0")
+        elif id_rx[4] != STM_CMD_ACK:
+            print("Invalid device id byte 4")
+        else:
+            bl_v = get_rx[1]
+            v_cmds = get_rx[3:14]
+            d_id = ((id_rx[2] << 8) | id_rx[3])
+            self.device_info = DeviceInformation(
+                bl_version=bl_v,
+                valid_cmds=v_cmds,
+                dev_id=d_id
+            )
+            self.device_id_read = True
+            self.bootloader_read = True
+            self.valid_cmds_read = True
+            success = True
+        return success
+
     def getBaud(self):
         return self.baud
 
@@ -94,6 +137,7 @@ class SerialTool:
         return self.serial.port
 
     def setSerialReadWriteTimeout(self, timeout: float):
+        """ set timeout for read/write serial operations """
         self.serial.timeout = timeout
         self.serial.write_timeout = timeout
 
@@ -139,15 +183,54 @@ class SerialTool:
     def disconnect(self):
         """close the socket"""
         self.serial.close()
+        self.connected = False
 
     def readDeviceInfo(self):
-        """ read the device information using the 
-            GET command
+        """read the device information using the
+        GET and GET_ID commands
         """
-        commands = bytearray([
-            STM_CMD_GET,
-            STM_BYTE_END_TX,
-        ])
+        commands = bytearray(
+            [
+                STM_CMD_GET,
+                STM_BYTE_END_TX,
+            ]
+        )
+        success = self.writeDevice(commands)
+        if success:
+            success, get_rx = self.readDevice(STM_RSP_GET_LEN)
+            print(f"success {success} rx: {get_rx}")
+        if success:
+            commands = bytearray([
+                STM_CMD_GET_ID,
+                STM_BYTE_END_TX,
+            ])
+            success = self.writeDevice(commands) 
+
+        if success:
+            success, id_rx = self.readDevice(5)
+
+        if success:
+            success = self.unpackDeviceInfo(get_rx, id_rx)
+        
+        return success
+
+    def getDeviceBootloaderVersion(self):
+        if self.device_info == None or self.bootloader_read == False:
+            raise InformationNotRetrieved("Bootloader version not read yet")
+        else:
+            return self.device_info.bootloader_version
+    
+    def getDeviceValidCommands(self):
+        if self.device_info == None or self.valid_cmds_read == False:
+            raise InformationNotRetrieved("Valid commands have not been read yet")
+        else:
+            return self.device_info.valid_cmds
+    
+    def getDeviceId(self):
+        if self.device_info == None or self.device_id_read == False:
+            raise InformationNotRetrieved("Device ID has not been read yet")
+        else:
+            return self.device_info.device_id
         
 
     def cmdGetInfo(self):
