@@ -120,4 +120,13 @@ class SerialFlasherTestCase(unittest.TestCase):
         a = self.sf.setBaud(DEVICE_SERIAL_BAUD)
         self.assertFalse(a)
 
-    
+    def testReadDeviceInformation(self):
+        """ test we can read the device information """
+        pass
+
+    def testGetDeviceValidCommands(self):
+        pass
+
+    def testGetDeviceBootloaderVersion(self):
+        pass
+
