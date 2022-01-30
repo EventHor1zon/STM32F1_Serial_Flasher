@@ -43,16 +43,13 @@ class DeviceInformation():
         pid_lsb = data[3]
         self.device_id = ((pid_msb << 8) | pid_lsb)
 
-    @property
-    def bootloader_version(self):
+    def getBootloaderVersion(self):
         return self.bootloader_version
 
-    @property
-    def valid_cmds(self):
+    def getValidCommands(self):
         return self.valid_cmds
     
-    @property
-    def device_id(self):
+    def getDeviceId(self):
         return self.device_id
 
 class InformationNotRetrieved(Exception):
@@ -71,6 +68,11 @@ class SerialTool:
     @staticmethod
     def checkBaudValid(baud):
         pass
+
+    @staticmethod
+    def crcXorByte(bytes):
+        return sum(bytes) ^ 0xFF
+
 
     def __init__(self, port=None, baud: int = 9600, serial: Serial = None):
         if serial is not None:
@@ -98,6 +100,7 @@ class SerialTool:
         """ 
         success = False
 
+        ## check acks in both packets
         if get_rx[0] != STM_CMD_ACK:
             print("Invalid Device info byte 1")
         elif get_rx[-1] != STM_CMD_ACK:
@@ -107,22 +110,28 @@ class SerialTool:
         elif id_rx[4] != STM_CMD_ACK:
             print("Invalid device id byte 4")
         else:
+            ## unpack values 
             bl_v = get_rx[1]
-            v_cmds = get_rx[3:14]
+            v_cmds = list(get_rx[3:14])
             d_id = ((id_rx[2] << 8) | id_rx[3])
+
+            ## create device information object
             self.device_info = DeviceInformation(
                 bl_version=bl_v,
                 valid_cmds=v_cmds,
                 dev_id=d_id
             )
+            ## set read successes
             self.device_id_read = True
             self.bootloader_read = True
             self.valid_cmds_read = True
             success = True
         return success
 
+
     def getBaud(self):
         return self.baud
+
 
     def setBaud(self, baud: int):
         if self.connected == True:
@@ -189,25 +198,10 @@ class SerialTool:
         """read the device information using the
         GET and GET_ID commands
         """
-        commands = bytearray(
-            [
-                STM_CMD_GET,
-                STM_BYTE_END_TX,
-            ]
-        )
-        success = self.writeDevice(commands)
+        
+        success, get_rx = self.cmdGetInfo()
         if success:
-            success, get_rx = self.readDevice(STM_RSP_GET_LEN)
-            print(f"success {success} rx: {get_rx}")
-        if success:
-            commands = bytearray([
-                STM_CMD_GET_ID,
-                STM_BYTE_END_TX,
-            ])
-            success = self.writeDevice(commands) 
-
-        if success:
-            success, id_rx = self.readDevice(5)
+            success, id_rx = self.cmdGetId()
 
         if success:
             success = self.unpackDeviceInfo(get_rx, id_rx)
@@ -231,11 +225,35 @@ class SerialTool:
             raise InformationNotRetrieved("Device ID has not been read yet")
         else:
             return self.device_info.device_id
+
+
+    def cmdGetId(self):
+        id_rx = None
+        id_commands = bytearray([
+            STM_CMD_GET_ID,
+            self.crcXorByte([STM_CMD_GET_ID]),
+        ])
+        success = self.writeDevice(id_commands) 
+
+        if success:
+            success, id_rx = self.readDevice(STM_GET_ID_RSP_LEN)
         
+        return success, id_rx
 
     def cmdGetInfo(self):
         """get the device information"""
-        pass
+        get_rx = None
+        get_commands = bytearray(
+            [
+                STM_CMD_GET,
+                self.crcXorByte([STM_CMD_GET]),
+            ]
+        )
+        success = self.writeDevice(get_commands)
+        if success:
+            success, get_rx = self.readDevice(STM_RSP_GET_LEN)
+        
+        return success, get_rx
 
     def cmdGetVersionProt(self):
         """get the device's bootloader protocol version"""
