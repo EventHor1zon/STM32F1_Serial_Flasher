@@ -191,6 +191,14 @@ class SerialFlasherTestCase(unittest.TestCase):
         with self.assertRaises(SF.InformationNotRetrieved):
             self.sf.getDeviceId()
 
+    def testCmdGetVersionProt(self):
+        """ interested to see what these other commands return 
+            and compare to the GET command output
+        """
+        self.sf.connect()
+        success, rx = self.sf.cmdGetVersionProt()
+        self.assertTrue(success)
+
     def testReadMemoryAddress(self):
         """ test we can read from a known memory address
             read a known fixed value from the device...
@@ -202,3 +210,5 @@ class SerialFlasherTestCase(unittest.TestCase):
         """ test we can write to a memory address
             write a byte, then read it back and confirm
         """
+        pass
+

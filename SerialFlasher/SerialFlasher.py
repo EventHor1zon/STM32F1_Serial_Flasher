@@ -9,6 +9,7 @@
 #
 
 from dataclasses import dataclass
+from re import T
 import sys
 from serial import Serial, SerialTimeoutException, SerialException, PARITY_EVEN
 import binascii
@@ -22,10 +23,38 @@ from SerialFlasher.constants import *
 #
 #   @param serial_port  - the name of the serial port to connect over
 #   @param baud         - baud rate of connection. Use common rates, 1200 - 115200 inclusive.
-
+#
+#
+#   Flash programming is gonna be fun!
+#   after reset, FPEC block is protected
+#   FLASH_CR not accessible in write mode  
+#   two write cycles to unlock
+#       -   1 : Key1 -> FLASH_KEYREG
+#       -   2 : Key2 -> FLASH_KEYREG
+#
+#
+#
+#
+#
+#
+#
+# Memory Area   Write command   Read command    Erase command       Go command
+#   Flash           Supported       Supported       Supported       Supported
+#   RAM Supported   Supported       Not supported   Supported
+#   System Memory   Not supported   Supported       Not supported   Not supported
+#   Data Memory     Supported       Supported       Not supported   Not supported
+#   OTP Memory      Supported       Supported       Not supported   Not supported
 
 
 class DeviceMemoryMap():
+
+    BOOTLOADER_START = 0x20000000
+    BOOTLOADER_LEN = 2048
+
+    RDPRT_key = 0x00A5
+    KEY1 = 0x45670123
+    KEY2 = 0xCDEF89AB
+
     register_map = {
         "FSMC": [0xA0000000, 0xA0000FFF],
         "USB OTG FS ": [0x50000000, 0x5003FFFF],
@@ -95,6 +124,10 @@ class DeviceMemoryMap():
         "TIM2 timer": [0x40000000, 0x400003FF],
     }
 
+    flash = {
+    }
+
+
     STMF1_SRAM_START=0x20000000
 
 
@@ -139,14 +172,23 @@ class SerialTool:
 
     device_info = None
 
+    ##=========== UTILITY FUNCTIONS =========##
+
     @staticmethod
     def checkBaudValid(baud):
         pass
 
     @staticmethod
-    def crcXorByte(bytes):
+    def crcXorBytes(bytes):
         return sum(bytes) ^ 0xFF
 
+    @staticmethod
+    def checkValidWriteAddress(address):
+        pass
+
+    @staticmethod
+    def checkValidReadAddress(address):
+        pass
 
     def __init__(self, port=None, baud: int = 9600, serial: Serial = None):
         if serial is not None:
@@ -203,9 +245,10 @@ class SerialTool:
         return success
 
 
+    ##============ GETTERS/SETTERS ============##
+
     def getBaud(self):
         return self.baud
-
 
     def setBaud(self, baud: int):
         if self.connected == True:
@@ -235,6 +278,29 @@ class SerialTool:
         """get the connected state"""
         return self.connected
 
+    def getDeviceBootloaderVersion(self):
+        if self.device_info == None or self.bootloader_read == False:
+            raise InformationNotRetrieved("Bootloader version not read yet")
+        else:
+            return self.device_info.bootloader_version
+    
+    def getDeviceValidCommands(self):
+        if self.device_info == None or self.valid_cmds_read == False:
+            raise InformationNotRetrieved("Valid commands have not been read yet")
+        else:
+            return self.device_info.valid_cmds
+    
+    def getDeviceId(self):
+        if self.device_info == None or self.device_id_read == False:
+            raise InformationNotRetrieved("Device ID has not been read yet")
+        else:
+            return self.device_info.device_id
+
+
+
+
+    ##============= Serial Interaction =========#
+
     def writeDevice(self, data: bytearray):
         """write data to the device
         this should be a staticmethod?
@@ -250,6 +316,18 @@ class SerialTool:
         """
         rx = self.serial.read(length)
         return (len(rx) == length), rx
+
+    def waitForAck(self, timeout :float=1.0):
+        if self.serial.timeout == None or self.serial.write_timeout == None:
+            self.setSerialReadWriteTimeout(timeout)
+        rx = self.serial.read_until(STM_CMD_ACK)
+        if STM_CMD_ACK in rx:
+            return True
+        else:
+            return False
+
+
+    ##============== Device Interaction =========##
 
     def connect(self):
         """connect to the STM chip"""
@@ -282,30 +360,17 @@ class SerialTool:
         
         return success
 
-    def getDeviceBootloaderVersion(self):
-        if self.device_info == None or self.bootloader_read == False:
-            raise InformationNotRetrieved("Bootloader version not read yet")
-        else:
-            return self.device_info.bootloader_version
-    
-    def getDeviceValidCommands(self):
-        if self.device_info == None or self.valid_cmds_read == False:
-            raise InformationNotRetrieved("Valid commands have not been read yet")
-        else:
-            return self.device_info.valid_cmds
-    
-    def getDeviceId(self):
-        if self.device_info == None or self.device_id_read == False:
-            raise InformationNotRetrieved("Device ID has not been read yet")
-        else:
-            return self.device_info.device_id
+    def readOptionBytes(self):
+        pass
 
+
+    ##=============== DEVICE COMMANDS ==========##
 
     def cmdGetId(self):
         id_rx = None
         id_commands = bytearray([
             STM_CMD_GET_ID,
-            self.crcXorByte([STM_CMD_GET_ID]),
+            self.crcXorBytes([STM_CMD_GET_ID]),
         ])
         success = self.writeDevice(id_commands) 
 
@@ -320,21 +385,41 @@ class SerialTool:
         get_commands = bytearray(
             [
                 STM_CMD_GET,
-                self.crcXorByte([STM_CMD_GET]),
+                self.crcXorBytes([STM_CMD_GET]),
             ]
         )
         success = self.writeDevice(get_commands)
         if success:
             success, get_rx = self.readDevice(STM_RSP_GET_LEN)
-        
-        return success, get_rx
+            # print(f"GET Bootloader Version {get_rx[2]}")
+        if success and get_rx[0] != STM_CMD_ACK:
+            success = False
 
-    def waitForAck(self, timeout :float=1.0):
-        pass
+        return success, get_rx
 
     def cmdGetVersionProt(self):
         """get the device's bootloader protocol version"""
+        rx = None
+        commands = bytearray([
+            STM_CMD_VERSION_READ_PROTECT,
+            self.crcXorBytes([STM_CMD_VERSION_READ_PROTECT])
+        ])
+        success = self.writeDevice(commands)
+        if success:
+            success, rx = self.readDevice(5)
+        if success and rx[0] != STM_CMD_ACK:
+            # print(f"Bootloader Version {rx[1]}, opt byte1 {rx[2]}, opt byte2 {rx[3]} ACK {rx[4]}")
+            success = False
+        return success, rx
+
+
+    def cmdReadFromMemoryAddress(self, address, length):
         pass
+
+
+    def cmdWriteToMemoryAddress(self, address, data):
+        pass
+
 
     def cmdWriteEnable(self):
         """ """
