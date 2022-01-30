@@ -1,6 +1,17 @@
 ## @file serialflasher_test.py
 #
 #   unit tests for the SerialFlasher class
+#   First attempt at test-driven development 
+#   Write a driver to interface with the STM F1 series of chips
+#   Want to provide interface to:
+#       - Connect with the device over serial UART
+#       - Read the device information 
+#       - Read from a memory address
+#       - Write to a memory address 
+#       - Lock/Unlock Flash sections
+#       - etc.
+#
+############################################
 
 
 VALID_PORT = "/dev/ttyUSB0"
@@ -42,7 +53,6 @@ DEVICE_VALID_CMDS = [
     STM_CMD_READOUT_PROTECT_DIS,    
 ]
 
-SFTEST_INVALID_SERIAL_PORT = "/dev/ttyABCD"
 
 
 class SerialFlasherTestCase(unittest.TestCase):
@@ -182,4 +192,13 @@ class SerialFlasherTestCase(unittest.TestCase):
             self.sf.getDeviceId()
 
     def testReadMemoryAddress(self):
-        """ test we cna read from a known memory address """
+        """ test we can read from a known memory address
+            read a known fixed value from the device...
+            let's go look at the data sheet...
+         """
+        pass
+
+    def testWriteMemoryAddress(self):
+        """ test we can write to a memory address
+            write a byte, then read it back and confirm
+        """
