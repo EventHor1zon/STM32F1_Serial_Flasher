@@ -17,7 +17,7 @@ if __name__ == "__main__":
         serial=serial
     )
     sf.connect()
-    success, rx = sf.cmdReadFromMemoryAddress(0x1FFFF800, 16)
+    success, rx = sf.cmdReadFromMemoryAddress(0x40022004, 4)
     sf.reset()
 
     

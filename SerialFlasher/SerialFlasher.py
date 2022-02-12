@@ -450,27 +450,33 @@ class SerialTool:
         """ read length bytes from address """
         rx = bytearray()
 
-        valid_address = self.checkValidReadAddress(address)
+        # check address is valid
+        address_valid = self.checkValidReadAddress(address)
         
-        if valid_address != CheckMemoryResponse.STM_ADDRESS_VALID:
+        if address_valid != CheckMemoryResponse.STM_ADDRESS_VALID:
             raise InvalidAddressError()
         
-        if length > 255:
+        # check read length
+        if length > 255 or length < 1:
             raise InvalidReadLength()
 
+        # read command bytes
         read_command = bytearray([
             STM_CMD_READ_MEM,
             self.getByteComplement(STM_CMD_READ_MEM),
         ])
         
+        # address bytes
         address_bytes = self.address_to_bytes(address)
         address_bytes = self.appendChecksum(address_bytes)
+        # length bytes
         length_bytes = bytearray([
             length,
             self.getByteComplement(length),
         ])
 
-
+        # write the command, address & length to the device
+        # waiting for ACKs in between
         success = self.writeDevice(read_command)
     
         if success:
@@ -491,10 +497,11 @@ class SerialTool:
         if success:
             success, rx = self.readDevice(length)
         
-
+        # return success and data
         return success, rx
 
     def cmdWriteToMemoryAddress(self, address, data):
+        """ write data to a memory address """
         pass
 
     def cmdWriteEnable(self):
