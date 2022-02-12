@@ -363,8 +363,13 @@ class SerialTool:
             self.setSerialReadWriteTimeout(timeout)
         rx = self.serial.read_until(bytes([STM_CMD_ACK]), size=1)
         if STM_CMD_ACK in rx:
+            print(f"ack received")
             return True
         elif STM_CMD_NACK in rx:
+            print(f"nack received")
+            return False
+        else:
+            print("neither recieved")
             return False
 
     ##============== Device Interaction =========##
@@ -481,22 +486,36 @@ class SerialTool:
     
         if success:
             success = self.waitForAck(self)
- 
+        else:
+            print(f"error write command")
+
         if success:
             success = self.writeDevice(address_bytes)
+        else:
+            print(f"error waiting for 1st ack")
     
         if success:
             success = self.waitForAck(self)
+        else:
+            print(f"error write address bytes")
 
         if success:
             success = self.writeDevice(length_bytes)
+        else:
+            print(f"error waiting 2nd ack")
             
         if success:
             success = self.waitForAck(self)
+        else:
+            print(f"error write length")
 
         if success:
             success, rx = self.readDevice(length)
+        else:
+            print(f"error 3rd wait for ack")
         
+        print(f"success {success} rx {rx}")
+
         # return success and data
         return success, rx
 
