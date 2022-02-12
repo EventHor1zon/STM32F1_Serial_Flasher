@@ -3,3 +3,6 @@ class InformationNotRetrieved(Exception):
 
 class InvalidAddressError(Exception):
     pass
+
+class InvalidReadLength(Exception):
+    pass

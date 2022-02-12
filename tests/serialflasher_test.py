@@ -29,6 +29,8 @@ from SerialFlasher.constants import *
 import sys
 from time import sleep
 
+from SerialFlasher.exceptions import InvalidAddressError
+
 
 # a non-existent serial port
 DEVICE_SERIAL_PORT = "/dev/ttyUSB0"
@@ -53,7 +55,9 @@ DEVICE_VALID_CMDS = [
     STM_CMD_READOUT_PROTECT_DIS,    
 ]
 
-
+DEVICE_TEST_READ_ADDR_OPTIONBYTES = 0x1FFFF800
+DEVICE_TEST_READ_ADDR_OPTBYTES_LEN = 16
+DEVICE_TEST_READ_INVALID_ADDR = 0x000000020
 
 class SerialFlasherTestCase(unittest.TestCase):
     def setUp(self):
@@ -203,12 +207,37 @@ class SerialFlasherTestCase(unittest.TestCase):
         """ test we can read from a known memory address
             read a known fixed value from the device...
             let's go look at the data sheet...
+            option byte seems a good target
+            also the flash CR 
          """
-        pass
-
-    def testWriteMemoryAddress(self):
-        """ test we can write to a memory address
-            write a byte, then read it back and confirm
+        self.sf.connect()
+        success, rx = self.sf.cmdReadFromMemoryAddress(DEVICE_TEST_READ_ADDR_OPTIONBYTES, DEVICE_TEST_READ_ADDR_OPTBYTES_LEN)
+        self.assertTrue(success)
+        """ as detailed in Rev 2 1/31 PM0075 flash option bytes 
+            are a 4 * 4 set of control registers. Each 4-byte set contains
+            2 data and 2 !data bytes. Compare these & make sure pattern 
+            is observed
         """
-        pass
+        rx_row_0 = rx[0:4]
+        rx_row_1 = rx[4:8]
+        rx_row_2 = rx[8:12]
+        rx_row_3 = rx[12:16]
+        ## no need to try them all
+        self.assertEqual(rx_row_0[0], (rx_row_0[1] ^ 0xff))
+        self.assertEqual(rx_row_1[2], (rx_row_1[3] ^ 0xff))
 
+    def testReadInvalidAddress(self):
+        self.sf.connect()
+        with self.assertRaises(InvalidAddressError):
+            self.sf.cmdReadFromMemoryAddress(DEVICE_TEST_READ_INVALID_ADDR, 1)
+
+
+    def testFlashUnlock(self):
+        """ test that we can unlock the flash succesfully
+            Read the flash register, ensure it's locked
+            then call the flash unlock method and 
+            read the register again, asserting that the bit is unset
+        """
+        self.sf.connect()
+        success = self.sf.unlockFlash()
+        self.assertTrue(success)
