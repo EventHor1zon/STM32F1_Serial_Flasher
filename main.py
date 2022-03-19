@@ -1,11 +1,14 @@
 from serial import Serial, SerialTimeoutException, SerialException, PARITY_EVEN
 from SerialFlasher.SerialFlasher import SerialTool
+from struct import unpack
+
 
 def main():
     pass
 
 
 if __name__ == "__main__":
+    fmt = ">H"
     serial = Serial(
         "/dev/ttyUSB0",
         57600,
@@ -17,8 +20,10 @@ if __name__ == "__main__":
         serial=serial
     )
     sf.connect()
-    success, rx = sf.cmdReadFromMemoryAddress(0x1FFFF800, 4)
-    print(f"State: {success} Data: {rx}")
+    success, rx = sf.cmdReadFromMemoryAddress(0x1FFFF7E0, 2)
+    d = unpack(fmt, rx)
+    print(f"State: {success} Data: {rx} d {d}")
+
     sf.reset()
 
     
