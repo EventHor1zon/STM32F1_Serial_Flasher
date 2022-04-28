@@ -16,7 +16,7 @@ import sys
 from serial import Serial, SerialTimeoutException, SerialException, PARITY_EVEN
 import binascii
 from SerialFlasher.constants import *
-from .exceptions import InformationNotRetrieved, InvalidAddressError, InvalidReadLength
+from .errors import InformationNotRetrieved, InvalidAddressError, InvalidReadLength
 
 ## SerialFlasher Class
 #   This class represents the object used to interface
@@ -37,7 +37,7 @@ from .exceptions import InformationNotRetrieved, InvalidAddressError, InvalidRea
 #
 #
 #
-# Memory Area   Write command   Read command    Erase command       Go command
+#   Memory Area   Write command   Read command    Erase command       Go command
 #   Flash           Supported       Supported       Supported       Supported
 #   RAM Supported   Supported       Not supported   Supported
 #   System Memory   Not supported   Supported       Not supported   Not supported
@@ -113,10 +113,10 @@ class SerialTool:
 
     @staticmethod
     def checkValidReadAddress(address):
-        return ValidAddressResponse.STM_ADDRESS_VALID
+        pass
 
-    """ return address as array of bytes, MSB first """
     def address_to_bytes(self, address):
+        """ return address as bytearray, MSB first """
         return bytearray([
             ((address >> 24) & 0xFF),
             ((address >> 16) & 0xFF),
@@ -125,11 +125,20 @@ class SerialTool:
         ])
 
     def reset(self):
+        """ remove this... """
         self.serial.setDTR(1)
         sleep(0.001)
         self.serial.setDTR(0)    
 
     def __init__(self, port=None, baud: int = 9600, serial: Serial = None):
+        """ 
+            Init the serial flasher object
+                Either supply a serial object or a port/baud for the 
+                serial connection created
+            \param port - the Serial port to connect to 
+            \param baud - the baud rate to communicate at
+            \param serial - the serial object to use
+        """
         if serial is not None:
             self.serial = serial
             self.port = serial.port
@@ -153,9 +162,14 @@ class SerialTool:
     ##============ GETTERS/SETTERS ============##
 
     def getBaud(self):
+        """ return the baud rate of the serial object """
         return self.baud
 
     def setBaud(self, baud: int):
+        """ 
+            set the baud rate of the serial object
+            cannot set once the device has connected
+        """
         if self.connected == True:
             return False
         elif baud > 115200 or baud < 1200:
@@ -165,6 +179,9 @@ class SerialTool:
         return True
 
     def getPort(self):
+        """ 
+            returns the port connected to by the serial object
+        """
         return self.serial.port
 
     def setSerialReadWriteTimeout(self, timeout: float):
@@ -173,6 +190,7 @@ class SerialTool:
         self.serial.write_timeout = timeout
 
     def getSerialTimeout(self):
+        """ returns the serial object's timeout """
         return self.serial.timeout
 
     def getSerialState(self):
@@ -195,13 +213,16 @@ class SerialTool:
         return True
 
     def readDevice(self, length):
-        """attempt to read len bytes from the device
-        return read_len, bytes
+        """
+            attempt to read len bytes from the device
+            return read_len, bytes
         """
         rx = self.serial.read(length)
         return (len(rx) == length), rx
 
     def waitForAck(self, timeout: float = 1.0):
+        # @brief Wait for an ack byte from the device
+        # @param timeout - the time to wait for the ack byte
         ## TODO: This better
         if self.serial.timeout == None or self.serial.write_timeout == None:
             self.setSerialReadWriteTimeout(timeout)
@@ -276,7 +297,7 @@ class SerialTool:
         rx = bytearray()
 
         # check address is valid
-        if self.checkValidReadAddress(address) != ValidAddressResponse.STM_ADDRESS_VALID:
+        if self.checkValidReadAddress(address) != True:
             raise InvalidAddressError()
         
         # check read length

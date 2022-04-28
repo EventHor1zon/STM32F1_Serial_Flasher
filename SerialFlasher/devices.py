@@ -1,13 +1,5 @@
 
 
-
-class ValidAddressResponse(Enum):
-    STM_ADDRESS_VALID = 1
-    STM_ADDRESS_INVALID_SECTION = 2
-    STM_ADDRESS_INVALID_LENGTH = 3
-    STM_ADDRESS_INVALID_ACCESS = 4
-
-
 class DeviceMemoryMap:
 
     BOOTLOADER_START = 0x20000000

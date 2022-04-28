@@ -1,13 +1,13 @@
 ## @file serialflasher_test.py
 #
 #   unit tests for the SerialFlasher class
-#   First attempt at test-driven development 
+#   First attempt at test-driven development
 #   Write a driver to interface with the STM F1 series of chips
 #   Want to provide interface to:
 #       - Connect with the device over serial UART
-#       - Read the device information 
+#       - Read the device information
 #       - Read from a memory address
-#       - Write to a memory address 
+#       - Write to a memory address
 #       - Lock/Unlock Flash sections
 #       - etc.
 #
@@ -29,7 +29,7 @@ from SerialFlasher.constants import *
 import sys
 from time import sleep
 
-from SerialFlasher.exceptions import InvalidAddressError
+from SerialFlasher.errors import InvalidAddressError
 
 
 # a non-existent serial port
@@ -40,7 +40,7 @@ DEVICE_SERIAL_RD_TIMEOUT_S = 1.0
 
 ## may have to refine this based on testing device!
 DEVICE_ID_EXPECTED = 1040
-DEVICE_VALID_BOOTLOADER_VERSION = 11 
+DEVICE_VALID_BOOTLOADER_VERSION = 11
 DEVICE_VALID_CMDS = [
     STM_CMD_GET,
     STM_CMD_VERSION_READ_PROTECT,
@@ -52,12 +52,13 @@ DEVICE_VALID_CMDS = [
     STM_CMD_WRITE_PROTECT_EN,
     STM_CMD_WRITE_PROTECT_DIS,
     STM_CMD_READOUT_PROTECT_EN,
-    STM_CMD_READOUT_PROTECT_DIS,    
+    STM_CMD_READOUT_PROTECT_DIS,
 ]
 
 DEVICE_TEST_READ_ADDR_OPTIONBYTES = 0x1FFFF800
 DEVICE_TEST_READ_ADDR_OPTBYTES_LEN = 16
 DEVICE_TEST_READ_INVALID_ADDR = 0x000000020
+
 
 class SerialFlasherTestCase(unittest.TestCase):
     def setUp(self):
@@ -68,9 +69,7 @@ class SerialFlasherTestCase(unittest.TestCase):
             write_timeout=DEVICE_SERIAL_WRT_TIMEOUT_S,
         )
         self.serial.setDTR(False)
-        self.sf = SF.SerialTool(
-            serial=self.serial
-        )
+        self.sf = SF.SerialTool(serial=self.serial)
 
     def tearDown(self):
         """Teardown: Close socket and reset device"""
@@ -211,7 +210,9 @@ class SerialFlasherTestCase(unittest.TestCase):
             also the flash CR 
          """
         self.sf.connect()
-        success, rx = self.sf.cmdReadFromMemoryAddress(DEVICE_TEST_READ_ADDR_OPTIONBYTES, DEVICE_TEST_READ_ADDR_OPTBYTES_LEN)
+        success, rx = self.sf.cmdReadFromMemoryAddress(
+            DEVICE_TEST_READ_ADDR_OPTIONBYTES, DEVICE_TEST_READ_ADDR_OPTBYTES_LEN
+        )
         self.assertTrue(success)
         """ as detailed in Rev 2 1/31 PM0075 flash option bytes 
             are a 4 * 4 set of control registers. Each 4-byte set contains
@@ -223,14 +224,13 @@ class SerialFlasherTestCase(unittest.TestCase):
         rx_row_2 = rx[8:12]
         rx_row_3 = rx[12:16]
         ## no need to try them all
-        self.assertEqual(rx_row_0[0], (rx_row_0[1] ^ 0xff))
-        self.assertEqual(rx_row_1[2], (rx_row_1[3] ^ 0xff))
+        self.assertEqual(rx_row_0[0], (rx_row_0[1] ^ 0xFF))
+        self.assertEqual(rx_row_1[2], (rx_row_1[3] ^ 0xFF))
 
     def testReadInvalidAddress(self):
         self.sf.connect()
         with self.assertRaises(InvalidAddressError):
             self.sf.cmdReadFromMemoryAddress(DEVICE_TEST_READ_INVALID_ADDR, 1)
-
 
     def testFlashUnlock(self):
         """ test that we can unlock the flash succesfully
