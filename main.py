@@ -20,6 +20,27 @@ if __name__ == "__main__":
         serial=serial
     )
     sf.connect()
+    success, rx = sf.cmdGetId()
+
+    if success:
+        print(f"Success! Received {[hex(b) for b in rx]}")
+    else:
+        print("Activity failed")
+
+    success, rx = sf.cmdGetInfo()
+
+    if success:
+        print(f"Success! Received {[hex(b) for b in rx]}")
+    else:
+        print("Activity failed")
+
+
+    success, rx = sf.cmdGetVersionProt()
+
+    if success:
+        print(f"Success! Received {[hex(b) for b in rx]}")
+    else:
+        print("Activity failed")
     success, rx = sf.cmdReadFromMemoryAddress(0x1FFFF7E0, 2)
     d = unpack(fmt, rx)
     print(f"State: {success} Data: {rx} d {d}")

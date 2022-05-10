@@ -16,7 +16,13 @@ import sys
 from serial import Serial, SerialTimeoutException, SerialException, PARITY_EVEN
 import binascii
 from SerialFlasher.constants import *
-from .errors import InformationNotRetrieved, InvalidAddressError, InvalidReadLength
+from .errors import (
+    InformationNotRetrieved,
+    InvalidAddressError,
+    InvalidReadLength,
+    InvalidResponseLengthError,
+    AckNotReceivedError
+)
 
 ## SerialFlasher Class
 #   This class represents the object used to interface
@@ -44,17 +50,17 @@ from .errors import InformationNotRetrieved, InvalidAddressError, InvalidReadLen
 #   Data Memory     Supported       Supported       Not supported   Not supported
 #   OTP Memory      Supported       Supported       Not supported   Not supported
 #
-#  
-# REFACTOR 
-#   Trying to do everything in a single class again! 
+#
+# REFACTOR
+#   Trying to do everything in a single class again!
 #
 #   Project structure needs some thinking about
-#       
-#   High Level Commands - 
+#
+#   High Level Commands -
 #           Write data to flash storage
 #           Get device information
 #           Get device status, etc
-#   
+#
 #   Mid level commands:
 #       Send Bootloader commands
 #       Check Bootloader responses
@@ -62,7 +68,7 @@ from .errors import InformationNotRetrieved, InvalidAddressError, InvalidReadLen
 #       Read registers
 #       Write registers
 #
-#   Low level commands - 
+#   Low level commands -
 #       read bytes
 #       write bytes
 #       wait for ack
@@ -72,9 +78,26 @@ from .errors import InformationNotRetrieved, InvalidAddressError, InvalidReadLen
 #   Bootloader Interface - mid level, sanity checking, device controller
 #   Serial interface - low level, serial port interface, timeouts etc
 #
-
-
-
+#   Flash memory programming sequence in standard mode:
+#       - check no flash mem operation (see BSY bit in FLASH_SR)
+#       - set the PG bit in FLASH_SR
+#       - perform the 16-bit write at desired address
+#       - wait for BSY bit to be unset
+#       - read the programmed value & verify
+#
+#   Programming the option bytes:
+#       - write KEYS 1 & 2 to the FLASH_OPTKEYR register to set the OPTWRE bit in the FLASH_CR
+#       - check no flash mem operation as above
+#       - set the OPTPG bit in the FLASH_CR
+#       - write the 16-bit value to desired address
+#       - wait for BSY to be unset & verify
+#
+#   Erasing the option bytes:
+#       - unlock the OPTWRE bit in the FLASH_CR as above
+#       - set the OPTER bit in the FLASH_CR
+#       - set the STRT but in the FLASH_CR
+#       - wait for BSY & verify
+#
 
 
 
@@ -89,6 +112,7 @@ class SerialTool:
         - handle handshake & initial serial connection
         - return the bytearrays read from the device
     """
+
     ##=========== UTILITY FUNCTIONS =========##
 
     @staticmethod
@@ -97,7 +121,7 @@ class SerialTool:
 
     @staticmethod
     def getByteComplement(byte):
-        return (byte ^ 0xFF)
+        return byte ^ 0xFF
 
     @staticmethod
     def appendChecksum(data: bytearray):
@@ -117,18 +141,20 @@ class SerialTool:
 
     def address_to_bytes(self, address):
         """ return address as bytearray, MSB first """
-        return bytearray([
-            ((address >> 24) & 0xFF),
-            ((address >> 16) & 0xFF),
-            ((address >> 8) & 0xFF),
-            (address & 0xFF),
-        ])
+        return bytearray(
+            [
+                ((address >> 24) & 0xFF),
+                ((address >> 16) & 0xFF),
+                ((address >> 8) & 0xFF),
+                (address & 0xFF),
+            ]
+        )
 
     def reset(self):
         """ remove this... """
         self.serial.setDTR(1)
         sleep(0.001)
-        self.serial.setDTR(0)    
+        self.serial.setDTR(0)
 
     def __init__(self, port=None, baud: int = 9600, serial: Serial = None):
         """ 
@@ -151,7 +177,6 @@ class SerialTool:
             self.serial = Serial(port, baud, timeout=1.0, write_timeout=1.0)
         self.serial.parity = PARITY_EVEN
         self.serial.setDTR(False)
-
 
     def parseCommandResponse(self, rsp: bytearray):
         """ assert response is correct """
@@ -228,14 +253,11 @@ class SerialTool:
             self.setSerialReadWriteTimeout(timeout)
         rx = self.serial.read_until(bytes([STM_CMD_ACK]), size=1)
         if STM_CMD_ACK in rx:
-            print(f"ack received")
             return True
         elif STM_CMD_NACK in rx:
-            print(f"nack received")
             return False
         else:
             ## TODO: raise invalid byte error or something
-            print("neither recieved")
             return False
 
     ##============== Device Interaction =========##
@@ -251,33 +273,44 @@ class SerialTool:
         self.connected = False
 
     ##=============== DEVICE COMMANDS ==========##
-
-    def cmdGetId(self):
-        id_rx = None
-        id_commands = bytearray([STM_CMD_GET_ID, self.getByteComplement(STM_CMD_GET_ID)])
-        success = self.writeDevice(id_commands)
-
+    def writeCommand(self, data, length):
+        success = self.writeDevice(data)
         if success:
             success = self.waitForAck()
+    
         if success:
-            success, id_rx = self.readDevice(STM_GET_ID_RSP_LEN)
+            success, rx = self.readDevice(STM32_RSP_LEN_BYTE)
 
-        return success, id_rx
+        if success:
+            incomming = rx[0]
+            if incomming + 1 != length:
+                raise InvalidResponseLengthError(
+                    f"Device responds with {incomming+1} bytes, but we're expecting {length} bytes"
+                )
+        
+        if success:
+            success, rx = self.readDevice(length)
+        
+        if success:
+            success = self.waitForAck()
+        
+        return success, rx
+
+    def cmdGetId(self):
+        id_command = bytearray([STM_CMD_GET_ID, self.getByteComplement(STM_CMD_GET_ID)])
+        return self.writeCommand(id_command, STM_GET_ID_RSP_LEN)
 
     def cmdGetInfo(self):
         """get the device information"""
-        get_rx = None
         get_commands = bytearray([STM_CMD_GET, self.getByteComplement(STM_CMD_GET),])
-        success = self.writeDevice(get_commands)
-        if success:
-            success, get_rx = self.readDevice(STM_RSP_GET_LEN)
-        if success and get_rx[0] != STM_CMD_ACK:
-            success = False
-
-        return success, get_rx
+        return self.writeCommand(get_commands, STM_RSP_GET_LEN)
 
     def cmdGetVersionProt(self):
-        """get the device's bootloader protocol version"""
+        """get the device's bootloader protocol version
+            this command is structured differently, presumably for backwards
+            compatibility. Likely better to use the GetInfo command unless the 
+            option bytes are specifically required      
+        """
         rx = None
         commands = bytearray(
             [
@@ -286,10 +319,16 @@ class SerialTool:
             ]
         )
         success = self.writeDevice(commands)
+
         if success:
-            success, rx = self.readDevice(5)
-        if success and rx[0] != STM_CMD_ACK:
-            success = False
+            self.waitForAck()
+
+        if success:
+            success, rx = self.readDevice(STM_VERS_RSP_LEN)
+
+        if success:
+            self.waitForAck()
+
         return success, rx
 
     def cmdReadFromMemoryAddress(self, address, length):
@@ -297,32 +336,28 @@ class SerialTool:
         rx = bytearray()
 
         # check address is valid
-        if self.checkValidReadAddress(address) != True:
-            raise InvalidAddressError()
-        
+        # if self.checkValidReadAddress(address) != True:
+        #     raise InvalidAddressError()
+
         # check read length
         if length > 255 or length < 1:
             raise InvalidReadLength()
 
         # read command bytes
-        read_command = bytearray([
-            STM_CMD_READ_MEM,
-            self.getByteComplement(STM_CMD_READ_MEM),
-        ])
-        
+        read_command = bytearray(
+            [STM_CMD_READ_MEM, self.getByteComplement(STM_CMD_READ_MEM),]
+        )
+
         # address bytes
         address_bytes = self.address_to_bytes(address)
         address_bytes = self.appendChecksum(address_bytes)
         # length bytes
-        length_bytes = bytearray([
-            length,
-            self.getByteComplement(length),
-        ])
+        length_bytes = bytearray([length, self.getByteComplement(length),])
 
         # write the command, address & length to the device
         # waiting for ACKs in between
         success = self.writeDevice(read_command)
-    
+
         if success:
             success = self.waitForAck(self)
         else:
@@ -332,7 +367,7 @@ class SerialTool:
             success = self.writeDevice(address_bytes)
         else:
             print(f"error waiting for 1st ack")
-    
+
         if success:
             success = self.waitForAck(self)
         else:
@@ -342,7 +377,7 @@ class SerialTool:
             success = self.writeDevice(length_bytes)
         else:
             print(f"error waiting 2nd ack")
-            
+
         if success:
             success = self.waitForAck(self)
         else:
@@ -352,7 +387,7 @@ class SerialTool:
             success, rx = self.readDevice(length)
         else:
             print(f"error 3rd wait for ack")
-        
+
         print(f"success {success} rx {rx}")
 
         # return success and data
@@ -374,7 +409,4 @@ class SerialTool:
 
     def cmdGoToAddress(self, address):
         pass
-
-
-
 
