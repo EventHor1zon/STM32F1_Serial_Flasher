@@ -133,15 +133,7 @@ class SerialTool:
         data.append(chk)
         return data
 
-    @staticmethod
-    def checkValidWriteAddress(address):
-        pass
-
-    @staticmethod
-    def checkValidReadAddress(address):
-        pass
-
-    def address_to_bytes(self, address):
+    def addressToBytes(self, address):
         """ return address as bytearray, MSB first """
         return bytearray(
             [
@@ -180,11 +172,6 @@ class SerialTool:
         self.serial.parity = PARITY_EVEN
         self.serial.setDTR(False)
 
-    def parseCommandResponse(self, rsp: bytearray):
-        """ assert response is correct """
-        n = rsp[0]
-        ## TODO: Do we add 1 here? Appnote says N-1 bytes
-        pass
 
     ##============ GETTERS/SETTERS ============##
 
@@ -255,9 +242,10 @@ class SerialTool:
         return success
 
     def waitForAck(self, timeout: float = 1.0):
-        # @brief Wait for an ack byte from the device
-        # @param timeout - the time to wait for the ack byte
-        ## TODO: This better
+        """ \brief Wait for an ack byte from the device
+            \param timeout - the time to wait for the ack byte
+        """
+
         if self.serial.timeout == None or self.serial.write_timeout == None:
             self.setSerialReadWriteTimeout(timeout)
         rx = self.serial.read_until(bytes([STM_CMD_ACK]), size=1)
@@ -302,7 +290,7 @@ class SerialTool:
                 raise InvalidResponseLengthError(
                     f"Device responds with {incomming+1} bytes, but expected {length} bytes"
                 )
-        
+
         if success:
             success, rx = self.readDevice(length)
         
@@ -311,7 +299,9 @@ class SerialTool:
         
         return success, rx
 
+
     def cmdGetId(self):
+        """ send the getId Command """
         id_command = bytearray([STM_CMD_GET_ID, self.getByteComplement(STM_CMD_GET_ID)])
         return self.writeCommand(id_command, STM_GET_ID_RSP_LEN)
 
@@ -366,7 +356,7 @@ class SerialTool:
         rx = bytearray() 
 
         # address bytes
-        address_bytes = self.address_to_bytes(address)
+        address_bytes = self.addressToBytes(address)
         address_bytes = self.appendChecksum(address_bytes)
         # length bytes
         length_bytes = bytearray([length, self.getByteComplement(length),])

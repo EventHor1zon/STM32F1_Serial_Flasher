@@ -39,7 +39,7 @@ DEVICE_SERIAL_WRT_TIMEOUT_S = 1.0
 DEVICE_SERIAL_RD_TIMEOUT_S = 1.0
 
 ## may have to refine this based on testing device!
-DEVICE_ID_EXPECTED = 1040
+DEVICE_ID_EXPECTED_BYTES = b"\x04\x10"
 DEVICE_VALID_BOOTLOADER_VERSION = 11
 DEVICE_VALID_CMDS = [
     STM_CMD_GET,
@@ -54,10 +54,12 @@ DEVICE_VALID_CMDS = [
     STM_CMD_READOUT_PROTECT_EN,
     STM_CMD_READOUT_PROTECT_DIS,
 ]
-
+## checksum8 XOR from https://www.scadacore.com/tools/programming-calculators/online-checksum-calculator/
+SF_TEST_SAMPLE_BYTES_NO_CHECKSUM = bytearray([0xA1, 0xA2, 0xA3])
+SF_TEST_SAMPLE_BYTES_W_CHECKSUM = bytearray([0xA1, 0xA2, 0xA3, 0xA0])
 DEVICE_TEST_READ_ADDR_OPTIONBYTES = 0x1FFFF800
 DEVICE_TEST_READ_ADDR_OPTBYTES_LEN = 16
-DEVICE_TEST_READ_INVALID_ADDR = 0x000000020
+DEVICE_TEST_READ_INVALID_ADDR = 0x02000000
 
 
 class SerialFlasherTestCase(unittest.TestCase):
@@ -82,6 +84,18 @@ class SerialFlasherTestCase(unittest.TestCase):
         self.serial.setDTR(1)
         sleep(0.001)
         self.serial.setDTR(0)
+
+    def testGetByteComplement(self):
+        self.assertEqual(self.sf.getByteComplement(0xFE), 1)
+
+    def testAppendChecksum(self):
+        self.assertEqual(
+            self.sf.appendChecksum(SF_TEST_SAMPLE_BYTES_NO_CHECKSUM),
+            SF_TEST_SAMPLE_BYTES_W_CHECKSUM,
+        )
+
+    def testAddressToBytes(self):
+        self.assertEqual(self.sf.addressToBytes(0x01020304), bytearray(b'\x01\x02\x03\x04'))
 
     def testGetBaud(self):
         """ test we can get the baud property """
@@ -152,47 +166,12 @@ class SerialFlasherTestCase(unittest.TestCase):
         a = self.sf.setBaud(DEVICE_SERIAL_BAUD)
         self.assertFalse(a)
 
-    def testReadDeviceInformation(self):
-        """ test we can read the device information """
-        self.sf.connect()
-        a = self.sf.readDeviceInfo()
-        self.assertTrue(a)
-
-    def testGetDeviceValidCommands(self):
-        """ test we can get the valid device commands as a list """
-        self.sf.connect()
-        self.sf.readDeviceInfo()
-        valid_cmds = self.sf.getDeviceValidCommands()
-        self.assertListEqual(valid_cmds, DEVICE_VALID_CMDS)
-
-    def testGetDeviceBootloaderVersion(self):
-        """ test we can get the expected device bootloader """
-        self.sf.connect()
-        self.sf.readDeviceInfo()
-        bootloader_version = self.sf.getDeviceBootloaderVersion()
-        self.assertEqual(bootloader_version, DEVICE_VALID_BOOTLOADER_VERSION)
-
-    def testGetDeviceId(self):
+    def testCmdGetId(self):
         """ test we can get the device id """
         self.sf.connect()
-        self.sf.readDeviceInfo()
-        device_id = self.sf.getDeviceId()
-        self.assertEqual(device_id, DEVICE_ID_EXPECTED)
-
-    def testGetDeviceValidCmdsBeforeRead(self):
-        """ test that getting valid commands before read raises exception """
-        with self.assertRaises(SF.InformationNotRetrieved):
-            self.sf.getDeviceValidCommands()
-
-    def testGetDeviceBootloaderVersionBeforeRead(self):
-        """ test that getting bootloader version before read raises exception """
-        with self.assertRaises(SF.InformationNotRetrieved):
-            self.sf.getDeviceBootloaderVersion()
-
-    def testGetDeviceIdBeforeRead(self):
-        """ test that getting device ID before read raises exception """
-        with self.assertRaises(SF.InformationNotRetrieved):
-            self.sf.getDeviceId()
+        success, rx = self.sf.cmdGetId()
+        self.assertEqual(success, True)
+        self.assertEqual(rx, DEVICE_ID_EXPECTED_BYTES)
 
     def testCmdGetVersionProt(self):
         """ interested to see what these other commands return 
@@ -227,17 +206,3 @@ class SerialFlasherTestCase(unittest.TestCase):
         self.assertEqual(rx_row_0[0], (rx_row_0[1] ^ 0xFF))
         self.assertEqual(rx_row_1[2], (rx_row_1[3] ^ 0xFF))
 
-    def testReadInvalidAddress(self):
-        self.sf.connect()
-        with self.assertRaises(InvalidAddressError):
-            self.sf.cmdReadFromMemoryAddress(DEVICE_TEST_READ_INVALID_ADDR, 1)
-
-    # def testFlashUnlock(self):
-    #     """ test that we can unlock the flash succesfully
-    #         Read the flash register, ensure it's locked
-    #         then call the flash unlock method and 
-    #         read the register again, asserting that the bit is unset
-    #     """
-    #     self.sf.connect()
-    #     success = self.sf.unlockFlash()
-    #     self.assertTrue(success)
