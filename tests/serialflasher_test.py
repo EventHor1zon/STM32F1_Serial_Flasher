@@ -232,12 +232,12 @@ class SerialFlasherTestCase(unittest.TestCase):
         with self.assertRaises(InvalidAddressError):
             self.sf.cmdReadFromMemoryAddress(DEVICE_TEST_READ_INVALID_ADDR, 1)
 
-    def testFlashUnlock(self):
-        """ test that we can unlock the flash succesfully
-            Read the flash register, ensure it's locked
-            then call the flash unlock method and 
-            read the register again, asserting that the bit is unset
-        """
-        self.sf.connect()
-        success = self.sf.unlockFlash()
-        self.assertTrue(success)
+    # def testFlashUnlock(self):
+    #     """ test that we can unlock the flash succesfully
+    #         Read the flash register, ensure it's locked
+    #         then call the flash unlock method and 
+    #         read the register again, asserting that the bit is unset
+    #     """
+    #     self.sf.connect()
+    #     success = self.sf.unlockFlash()
+    #     self.assertTrue(success)

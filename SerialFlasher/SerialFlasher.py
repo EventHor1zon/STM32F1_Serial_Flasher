@@ -113,6 +113,8 @@ class SerialTool:
         - return the bytearrays read from the device
     """
 
+    connected = False
+
     ##=========== UTILITY FUNCTIONS =========##
 
     @staticmethod
@@ -245,6 +247,13 @@ class SerialTool:
         rx = self.serial.read(length)
         return (len(rx) == length), rx
 
+    def writeAndWaitAck(self, data: bytearray):
+        """ sends data to device and waits for ack """
+        success = self.writeDevice(data)
+        if success:
+            success = self.waitForAck()
+        return success
+
     def waitForAck(self, timeout: float = 1.0):
         # @brief Wait for an ack byte from the device
         # @param timeout - the time to wait for the ack byte
@@ -257,15 +266,17 @@ class SerialTool:
         elif STM_CMD_NACK in rx:
             return False
         else:
-            ## TODO: raise invalid byte error or something
+            ## TODO: raise invalid byte error or return false?
             return False
 
     ##============== Device Interaction =========##
 
     def connect(self):
         """connect to the STM chip"""
-        self.writeDevice(bytearray([STM_CMD_HANDSHAKE]))
-        return self.waitForAck()
+        success = self.writeAndWaitAck(bytearray([STM_CMD_HANDSHAKE]))
+        if success:
+            self.connected = True
+        return success
 
     def disconnect(self):
         """close the socket"""
@@ -273,7 +284,11 @@ class SerialTool:
         self.connected = False
 
     ##=============== DEVICE COMMANDS ==========##
+    
     def writeCommand(self, data, length):
+        """ write a command byte, check ack and get a response """
+        rx = bytearray()
+
         success = self.writeDevice(data)
         if success:
             success = self.waitForAck()
@@ -285,7 +300,7 @@ class SerialTool:
             incomming = rx[0]
             if incomming + 1 != length:
                 raise InvalidResponseLengthError(
-                    f"Device responds with {incomming+1} bytes, but we're expecting {length} bytes"
+                    f"Device responds with {incomming+1} bytes, but expected {length} bytes"
                 )
         
         if success:
@@ -306,22 +321,20 @@ class SerialTool:
         return self.writeCommand(get_commands, STM_RSP_GET_LEN)
 
     def cmdGetVersionProt(self):
-        """get the device's bootloader protocol version
+        """ get the device's bootloader protocol version
             this command is structured differently, presumably for backwards
             compatibility. Likely better to use the GetInfo command unless the 
             option bytes are specifically required      
         """
-        rx = None
+        rx = bytearray()
+
         commands = bytearray(
             [
                 STM_CMD_VERSION_READ_PROTECT,
                 self.getByteComplement(STM_CMD_VERSION_READ_PROTECT),
             ]
         )
-        success = self.writeDevice(commands)
-
-        if success:
-            self.waitForAck()
+        success = self.writeAndWaitAck(commands)
 
         if success:
             success, rx = self.readDevice(STM_VERS_RSP_LEN)
@@ -332,21 +345,25 @@ class SerialTool:
         return success, rx
 
     def cmdReadFromMemoryAddress(self, address, length):
-        """ read length bytes from address """
-        rx = bytearray()
-
-        # check address is valid
-        # if self.checkValidReadAddress(address) != True:
-        #     raise InvalidAddressError()
+        """ read length bytes from address
+            - Send readAddress Command & wait ack
+            - Send Address ^ chk & wait ack
+            - Send readLength ^ chk & wait ack
+        """
 
         # check read length
         if length > 255 or length < 1:
-            raise InvalidReadLength()
+            raise InvalidReadLength(
+                "Read length must be > 0 and < 256 bytes"
+            )
 
         # read command bytes
-        read_command = bytearray(
+        commands = bytearray(
             [STM_CMD_READ_MEM, self.getByteComplement(STM_CMD_READ_MEM),]
         )
+
+        # initialise rx as empty bytearray
+        rx = bytearray() 
 
         # address bytes
         address_bytes = self.address_to_bytes(address)
@@ -355,43 +372,19 @@ class SerialTool:
         length_bytes = bytearray([length, self.getByteComplement(length),])
 
         # write the command, address & length to the device
-        # waiting for ACKs in between
-        success = self.writeDevice(read_command)
+        success = self.writeAndWaitAck(commands)
 
         if success:
-            success = self.waitForAck(self)
-        else:
-            print(f"error write command")
+            success = self.writeAndWaitAck(address_bytes)
 
         if success:
-            success = self.writeDevice(address_bytes)
-        else:
-            print(f"error waiting for 1st ack")
-
-        if success:
-            success = self.waitForAck(self)
-        else:
-            print(f"error write address bytes")
-
-        if success:
-            success = self.writeDevice(length_bytes)
-        else:
-            print(f"error waiting 2nd ack")
-
-        if success:
-            success = self.waitForAck(self)
-        else:
-            print(f"error write length")
+            success = self.writeAndWaitAck(length_bytes)
 
         if success:
             success, rx = self.readDevice(length)
-        else:
-            print(f"error 3rd wait for ack")
 
-        print(f"success {success} rx {rx}")
-
-        # return success and data
         return success, rx
+
 
     def cmdWriteToMemoryAddress(self, address, data):
         """ write data to a memory address """
