@@ -12,3 +12,14 @@ class InvalidResponseLengthError(Exception):
 
 class AckNotReceivedError(Exception):
     pass
+
+
+
+class DeviceNotConnectedError(Exception):
+    pass
+
+class CommandFailedError(Exception):
+    pass
+
+class UnpackInfoFailedError(Exception):
+    pass

@@ -1,3 +1,4 @@
+from STM32F1_Serial_Flasher.SerialFlasher.SerialFlasher import SerialTool
 from .constants import *
 from .errors import *
 
@@ -9,15 +10,17 @@ class StmDeviceObject:
         - provide higher level interface to the device
         - allow reading/writing of specific sections
         - translate device areas into specific memory addresses
+        - lock/unlock flash sections
     """
+    
 
-    def __init__(
-        self, bl_version: int = None, valid_cmds: list = None, dev_id: int = None
-    ):
-        self.bootloader_version = bl_version
-        self.valid_cmds = valid_cmds
-        self.device_id = dev_id
-
+    def __init__(self, serialTool = None):
+        self.connected = False
+        self.validCmds = []
+        self.bootLoaderVersion = None
+        self.deviceId = None
+        self.productId = None
+        self.serialTool = None if serialTool is None else serialTool
 
     @staticmethod
     def checkValidWriteAddress(address):
@@ -36,47 +39,55 @@ class StmDeviceObject:
         pid_lsb = data[3]
         self.device_id = (pid_msb << 8) | pid_lsb
 
-    def getBootloaderVersion(self):
-        return self.bootloader_version
+    def connectToDevice(self, port: str, baud: int = 9600):
+        if self.serialTool == None:
+            self.serialTool = SerialTool(
+                port=port,
+                baud=baud
+            )
+        self.connected = True
+        return self.serialTool.connect()
 
-    def getValidCommands(self):
-        return self.valid_cmds
+    def unpackDeviceInfo(self, id, info):
+        self.bootLoaderVersion = ".".join([c for c in str(hex(info[0])).strip("0x")])
+        for i in range(1, len(info)):
+            #TODO: A better class for commands 
+            # - commandFromCode
+            self.validCmds.append(info[i])
+        self.productId = id[0]
+        self.deviceId = id[1]
 
-    def getDeviceId(self):
-        return self.device_id
+    def getMapFromId(self):
+        return None
 
-    def unpackDeviceInfo(self, get_rx: bytearray, id_rx: bytearray):
+
+    def collectDeviceDetails(self):
+        """ collects the objects device characteristics 
+            NOTE: probably shouldn't have so many exceptions here?
+            TODO: Google when to use exceptions
         """
-            # TODO - delete & redo
-            populate device information from a 'GET' command response 
-            and ID commands response
-            bytes: 0 - ACK
-                    1 - N (11)
-                    2 - BL Vers (0 - 255)
-                    3 - cmd (0)
-                    4 - cmd (1)
-                    ...
-                    -1 - ACK
-        """
-        success = False
+        if not self.connected:
+            raise DeviceNotConnectedError("Device connection not started")
 
-        ## check acks in both packets
-        if get_rx[0] != STM_CMD_ACK:
-            print("Invalid Device info byte 1")
-        elif get_rx[-1] != STM_CMD_ACK:
-            print("Invalid device info byte 15")
-        elif id_rx[0] != STM_CMD_ACK:
-            print("Invalid device id byte 0")
-        elif id_rx[4] != STM_CMD_ACK:
-            print("Invalid device id byte 4")
-        else:
-            ## unpack values 
-            bl_v = get_rx[1]
-            v_cmds = list(get_rx[3:14])
-            d_id = (id_rx[2] << 8) | id_rx[3]
+        success, id = self.serialTool.cmdGetId()
 
-            success = True
-        return success
+        if not success:
+            raise CommandFailedError("GetId Command failed")
+
+        success, info = self.serialTool.cmdGetInfo()
+
+        if not success:
+            raise CommandFailedError("GetInfo Command failed")
+
+        success = self.unpackDeviceInfo(self, id, info)
+        
+        if not success:
+            raise UnpackInfoFailedError("Error unpacking the device info")
+
+        self.registerMap = self.getMapFromId()
+
+        return True
+
 
     def getDeviceBootloaderVersion(self):
         if self.device_info == None or self.bootloader_read == False:
@@ -97,20 +108,6 @@ class StmDeviceObject:
             return self.device_info.device_id
 
 
-    def readDeviceInfo(self):
-        """
-            read the device information using the
-            GET and GET_ID commands
-        """
-
-        success, get_rx = self.cmdGetInfo()
-        if success:
-            success, id_rx = self.cmdGetId()
-
-        if success:
-            success = self.unpackDeviceInfo(get_rx, id_rx)
-
-        return success
 
     def readOptionBytes(self):
         pass

@@ -23,14 +23,14 @@ if __name__ == "__main__":
     success, rx = sf.cmdGetId()
 
     if success:
-        print(f"Success! Received {[hex(b) for b in rx]}")
+        print(f"Success! CmdId {[hex(b) for b in rx]} {rx}")
     else:
         print("Activity failed")
 
     success, rx = sf.cmdGetInfo()
 
     if success:
-        print(f"Success! Received {[hex(b) for b in rx]}")
+        print(f"Success! CmdGet {[hex(b) for b in rx]}")
     else:
         print("Activity failed")
 
@@ -38,7 +38,7 @@ if __name__ == "__main__":
     success, rx = sf.cmdGetVersionProt()
 
     if success:
-        print(f"Success! Received {[hex(b) for b in rx]}")
+        print(f"Success! CmdVersionProtect {[hex(b) for b in rx]} {rx}")
     else:
         print("Activity failed")
     success, rx = sf.cmdReadFromMemoryAddress(0x1FFFF7E0, 2)

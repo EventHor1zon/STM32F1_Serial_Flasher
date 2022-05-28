@@ -1,5 +1,18 @@
 
 
+
+from enum import Enum
+
+
+class DeviceCommands(Enum):
+    GET_COMMAND = 0
+    VERSION_COMMAND = 1
+    ID_COMMAND = 2
+
+class DeviceType(Enum):
+    NONE = 0
+
+
 class DeviceMemoryMap:
 
     BOOTLOADER_START = 0x20000000
