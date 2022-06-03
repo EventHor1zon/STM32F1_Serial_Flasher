@@ -1,5 +1,20 @@
 import unittest
+from SerialFlasher.constants import *
 
+DEVICE_VALID_BOOTLOADER_VERSION = 2.2
+DEVICE_VALID_CMDS = [
+    STM_CMD_GET,
+    STM_CMD_VERSION_READ_PROTECT,
+    STM_CMD_GET_ID,
+    STM_CMD_READ_MEM,
+    STM_CMD_GO,
+    STM_CMD_WRITE_MEM,
+    STM_CMD_ERASE_MEM,
+    STM_CMD_WRITE_PROTECT_EN,
+    STM_CMD_WRITE_PROTECT_DIS,
+    STM_CMD_READOUT_PROTECT_EN,
+    STM_CMD_READOUT_PROTECT_DIS,
+]
 
 class StmDeviceTestCase(unittest.TestCase):
 
@@ -12,8 +27,8 @@ class StmDeviceTestCase(unittest.TestCase):
 
     def testReadDeviceInformation(self):
         """ test we can read the device information """
-        self.sf.connect()
-        a = self.sf.readDeviceInfo()
+        self.stm.connect()
+        a = self.stm.readDeviceInfo()
         self.assertTrue(a)
 
     def testGetDeviceValidCommands(self):

@@ -1,7 +1,7 @@
 from STM32F1_Serial_Flasher.SerialFlasher.SerialFlasher import SerialTool
 from .constants import *
 from .errors import *
-
+from .devices import DeviceDensity 
 
 class StmDeviceObject:
     """ The device object should:
@@ -21,6 +21,7 @@ class StmDeviceObject:
         self.deviceId = None
         self.productId = None
         self.serialTool = None if serialTool is None else serialTool
+        self.connected = False if serialTool is None else serialTool.getConnectedState()
 
     @staticmethod
     def checkValidWriteAddress(address):
@@ -29,6 +30,18 @@ class StmDeviceObject:
     @staticmethod
     def checkValidReadAddress(address):
         pass
+
+    def densityFromFlashMemorySize(self, memory):
+        if memory > 16000 and memory < 64000:
+            return DeviceDensity.DEVICE_TYPE_LOW_DENSITY
+        elif memory > 64000 and memory < 256000:
+            return DeviceDensity.DEVICE_TYPE_MEDIUM_DENSITY
+        elif memory > 256000 and memory < 768000:
+            return DeviceDensity.DEVICE_TYPE_HIGH_DENSITY
+        elif memory > 768000:
+            return DeviceDensity.DEVICE_TYPE_XL_DENSITY
+        else:
+            return None
 
     def updateFromGETrsp(self, data: bytearray):
         self.bootloader_version = data[2]

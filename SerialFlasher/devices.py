@@ -10,13 +10,31 @@ from dataclasses import dataclass
 class Register:
     name: str
     start: int
+    size: int
+
+@dataclass
+class Peripheral:
+    """ describes a peripheral on the device """
+    name: str
+    start: int
     end: int
 
-    def width(self) -> int:
+    def size(self) -> int:
         return self.end - self.start
 
 @dataclass
+class PeripheralRegister:
+    """ describes a Peripheral register
+        Offset from peripheral start address
+        and value at reset
+    """
+    peripheral: Peripheral
+    offset: int
+    reset: int
+
+@dataclass
 class Region:
+    """ describes a region of memory space on the device """
     name: str
     start: int
     size: int
@@ -26,82 +44,88 @@ class DeviceCommands(Enum):
     VERSION_COMMAND = 1
     ID_COMMAND = 2
 
-
-class DeviceType(Enum):
-    NONE = 0
+class DeviceDensity(Enum):
+    DEVICE_TYPE_UNKNOWN = 0
+    DEVICE_TYPE_LOW_DENSITY = 1
+    DEVICE_TYPE_MEDIUM_DENSITY = 2
+    DEVICE_TYPE_HIGH_DENSITY = 3
+    DEVICE_TYPE_XL_DENSITY = 4
 
 
 class DeviceMemoryMap:
+    """ describes a device's memory layout - this is just a gathering place for information currently 
+        it will be updated to be a good representation of the connected device's memory
+    """
 
-    BOOTLOADER_START = 0x20000000
-    BOOTLOADER_LEN = 2048
+    Peripheral("FSMC", 0xA0000000, 0xA0000FFF),
+    Peripheral("USB OTG FS ", 0x50000000, 0x5003FFFF),
+    Peripheral("Reserved", 0x40030000, 0x4FFFFFFF),
+    Peripheral("Ethernet", 0x40028000, 0x40029FFF),
+    Peripheral("Reserved", 0x40023400, 0x40027FFF),
+    Peripheral("CRC Section", 0x40023000, 0x400233FF),
+    Peripheral("Flash memory interface", 0x40022000, 0x400223FF),
+    Peripheral("Reserved", 0x40021400, 0x40021FFF),
+    Peripheral("Reset and clock control RCC", 0x40021000, 0x400213FF),
+    Peripheral("Reserved", 0x40020800, 0x40020FFF),
+    Peripheral("DMA2", 0x40020400, 0x400207FF),
+    Peripheral("DMA1", 0x40020000, 0x400203FF),
+    Peripheral("Reserved ", 0x40018400, 0x4001FFFF),
+    Peripheral("SDIO", 0x40018000, 0x400183FF),
+    Peripheral("Reserved", 0x40015800, 0x40017FFF),
+    Peripheral("TIM11 timer", 0x40015400, 0x400157FF),
+    Peripheral("TIM10 timer", 0x40015000, 0x400153FF),
+    Peripheral("TIM9 timer ", 0x40014C00, 0x40014FFF),
+    Peripheral("Reserved", 0x40014000, 0x40014BFF),
+    Peripheral("ADC3", 0x40013C00, 0x40013FFF),
+    Peripheral("USART1", 0x40013800, 0x40013BFF),
+    Peripheral("TIM8 timer", 0x40013400, 0x400137FF),
+    Peripheral("SPI1", 0x40013000, 0x400133FF),
+    Peripheral("TIM1 timer", 0x40012C00, 0x40012FFF),
+    Peripheral("ADC2", 0x40012800, 0x40012BFF),
+    Peripheral("ADC1", 0x40012400, 0x400127FF),
+    Peripheral("GPIO Port G", 0x40012000, 0x400123FF),
+    Peripheral("GPIO Port F", 0x40011C00, 0x40011FFF),
+    Peripheral("GPIO Port E", 0x40011800, 0x40011BFF),
+    Peripheral("GPIO Port D", 0x40011400, 0x400117FF),
+    Peripheral("GPIO Port C", 0x40011000, 0x400113FF),
+    Peripheral("GPIO Port B", 0x40010C00, 0x40010FFF),
+    Peripheral("GPIO Port A", 0x40010800, 0x40010BFF),
+    Peripheral("EXTI", 0x40010400, 0x400107FF),
+    Peripheral("AFIO", 0x40010000, 0x400103FF),
+    Peripheral("Reserved", 0x40007800, 0x4000FFFF),
+    Peripheral("DAC", 0x40007400, 0x400077FF),
+    Peripheral("Power control PWR", 0x40007000, 0x400073FF),
+    Peripheral("Backup registers", 0x40006C00, 0x40006FFF),
+    Peripheral("bxCAN1", 0x40006400, 0x400067FF),
+    Peripheral("bxCAN2", 0x40006800, 0x40006BFF),
+    Peripheral("Shared USB/CAN SRAM", 0x40006000, 0x400063FF),
+    Peripheral("USB device FS registers", 0x40005C00, 0x40005FFF),
+    Peripheral("I2C2", 0x40005800, 0x40005BFF),
+    Peripheral("I2C1", 0x40005400, 0x400057FF),
+    Peripheral("UART5", 0x40005000, 0x400053FF),
+    Peripheral("UART4", 0x40004C00, 0x40004FFF),
+    Peripheral("USART3", 0x40004800, 0x40004BFF),
+    Peripheral("USART2", 0x40004400, 0x400047FF),
+    Peripheral("Reserved", 0x40004000, 0x400043FF),
+    Peripheral("SPI3/I2S", 0x40003C00, 0x40003FFF),
+    Peripheral("SPI2/I2S", 0x40003800, 0x40003BFF),
+    Peripheral("Reserved", 0x40003400, 0x400037FF),
+    Peripheral("Independent watchdog", 0x40003000, 0x400033FF),
+    Peripheral("Window watchdog", 0x40002C00, 0x40002FFF),
+    Peripheral("RTC", 0x40002800, 0x40002BFF),
+    Peripheral("Reserved", 0x40002400, 0x400027FF),
+    Peripheral("TIM14 timer", 0x40002000, 0x400023FF),
+    Peripheral("TIM13 timer", 0x40001C00, 0x40001FFF),
+    Peripheral("TIM12 timer", 0x40001800, 0x40001BFF),
+    Peripheral("TIM7 timer", 0x40001400, 0x400017FF),
+    Peripheral("TIM6 timer", 0x40001000, 0x400013FF),
+    Peripheral("TIM5 timer", 0x40000C00, 0x40000FFF),
+    Peripheral("TIM4 timer", 0x40000800, 0x40000BFF),
+    Peripheral("TIM3 timer", 0x40000400, 0x400007FF),
+    Peripheral("TIM2 timer", 0x40000000, 0x400003FF),
 
-    Register("FSMC", 0xA0000000, 0xA0000FFF),
-    Register("USB OTG FS ", 0x50000000, 0x5003FFFF),
-    Register("Reserved", 0x40030000, 0x4FFFFFFF),
-    Register("Ethernet", 0x40028000, 0x40029FFF),
-    Register("Reserved", 0x40023400, 0x40027FFF),
-    Register("CRC Section", 0x40023000, 0x400233FF),
-    Register("Flash memory interface", 0x40022000, 0x400223FF),
-    Register("Reserved", 0x40021400, 0x40021FFF),
-    Register("Reset and clock control RCC", 0x40021000, 0x400213FF),
-    Register("Reserved", 0x40020800, 0x40020FFF),
-    Register("DMA2", 0x40020400, 0x400207FF),
-    Register("DMA1", 0x40020000, 0x400203FF),
-    Register("Reserved ", 0x40018400, 0x4001FFFF),
-    Register("SDIO", 0x40018000, 0x400183FF),
-    Register("Reserved", 0x40015800, 0x40017FFF),
-    Register("TIM11 timer", 0x40015400, 0x400157FF),
-    Register("TIM10 timer", 0x40015000, 0x400153FF),
-    Register("TIM9 timer ", 0x40014C00, 0x40014FFF),
-    Register("Reserved", 0x40014000, 0x40014BFF),
-    Register("ADC3", 0x40013C00, 0x40013FFF),
-    Register("USART1", 0x40013800, 0x40013BFF),
-    Register("TIM8 timer", 0x40013400, 0x400137FF),
-    Register("SPI1", 0x40013000, 0x400133FF),
-    Register("TIM1 timer", 0x40012C00, 0x40012FFF),
-    Register("ADC2", 0x40012800, 0x40012BFF),
-    Register("ADC1", 0x40012400, 0x400127FF),
-    Register("GPIO Port G", 0x40012000, 0x400123FF),
-    Register("GPIO Port F", 0x40011C00, 0x40011FFF),
-    Register("GPIO Port E", 0x40011800, 0x40011BFF),
-    Register("GPIO Port D", 0x40011400, 0x400117FF),
-    Register("GPIO Port C", 0x40011000, 0x400113FF),
-    Register("GPIO Port B", 0x40010C00, 0x40010FFF),
-    Register("GPIO Port A", 0x40010800, 0x40010BFF),
-    Register("EXTI", 0x40010400, 0x400107FF),
-    Register("AFIO", 0x40010000, 0x400103FF),
-    Register("Reserved", 0x40007800, 0x4000FFFF),
-    Register("DAC", 0x40007400, 0x400077FF),
-    Register("Power control PWR", 0x40007000, 0x400073FF),
-    Register("Backup registers", 0x40006C00, 0x40006FFF),
-    Register("bxCAN1", 0x40006400, 0x400067FF),
-    Register("bxCAN2", 0x40006800, 0x40006BFF),
-    Register("Shared USB/CAN SRAM", 0x40006000, 0x400063FF),
-    Register("USB device FS registers", 0x40005C00, 0x40005FFF),
-    Register("I2C2", 0x40005800, 0x40005BFF),
-    Register("I2C1", 0x40005400, 0x400057FF),
-    Register("UART5", 0x40005000, 0x400053FF),
-    Register("UART4", 0x40004C00, 0x40004FFF),
-    Register("USART3", 0x40004800, 0x40004BFF),
-    Register("USART2", 0x40004400, 0x400047FF),
-    Register("Reserved", 0x40004000, 0x400043FF),
-    Register("SPI3/I2S", 0x40003C00, 0x40003FFF),
-    Register("SPI2/I2S", 0x40003800, 0x40003BFF),
-    Register("Reserved", 0x40003400, 0x400037FF),
-    Register("Independent watchdog", 0x40003000, 0x400033FF),
-    Register("Window watchdog", 0x40002C00, 0x40002FFF),
-    Register("RTC", 0x40002800, 0x40002BFF),
-    Register("Reserved", 0x40002400, 0x400027FF),
-    Register("TIM14 timer", 0x40002000, 0x400023FF),
-    Register("TIM13 timer", 0x40001C00, 0x40001FFF),
-    Register("TIM12 timer", 0x40001800, 0x40001BFF),
-    Register("TIM7 timer", 0x40001400, 0x400017FF),
-    Register("TIM6 timer", 0x40001000, 0x400013FF),
-    Register("TIM5 timer", 0x40000C00, 0x40000FFF),
-    Register("TIM4 timer", 0x40000800, 0x40000BFF),
-    Register("TIM3 timer", 0x40000400, 0x400007FF),
-    Register("TIM2 timer", 0x40000000, 0x400003FF),
+    Register("Flash Size", 0x1FFFF7E0, 4)
+    Register("UniqueId", 0x1FFFF7E8, 24)
 
     Region("MainMemoryStart", 0x0800000, 2000)
     Region("Sytem memory", 0x1FFFF000, 2000) ## variable length depending on device type

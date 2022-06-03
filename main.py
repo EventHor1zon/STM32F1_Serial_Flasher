@@ -41,9 +41,10 @@ if __name__ == "__main__":
         print(f"Success! CmdVersionProtect {[hex(b) for b in rx]} {rx}")
     else:
         print("Activity failed")
-    success, rx = sf.cmdReadFromMemoryAddress(0x1FFFF7E0, 2)
-    d = unpack(fmt, rx)
-    print(f"State: {success} Data: {rx} d {d}")
+    # success, rx = sf.cmdReadFromMemoryAddress(0x1FFFF7E0, 2)
+    # d = unpack(fmt, rx)
+    success, rx = sf.cmdReadFromMemoryAddress(0x1FFFF7E8, 24)
+    print(f"State: {success} Data: {rx}")
 
     sf.reset()
 
