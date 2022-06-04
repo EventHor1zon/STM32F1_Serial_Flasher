@@ -1,9 +1,11 @@
-from STM32F1_Serial_Flasher.SerialFlasher.SerialFlasher import SerialTool
+from .SerialFlasher import SerialTool
 from .constants import *
 from .errors import *
-from .devices import DeviceDensity 
+from .devices import DeviceDensity , Device
+from struct import unpack
+from time import sleep
 
-class StmDeviceObject:
+class STMInterface:
     """ The device object should:
         - describe the connected device
         - keep track of the device information retrieved
@@ -14,14 +16,11 @@ class StmDeviceObject:
     """
     
 
-    def __init__(self, serialTool = None):
+    def __init__(self, serialTool: SerialTool = None):
         self.connected = False
-        self.validCmds = []
-        self.bootLoaderVersion = None
-        self.deviceId = None
-        self.productId = None
         self.serialTool = None if serialTool is None else serialTool
         self.connected = False if serialTool is None else serialTool.getConnectedState()
+        self.device = None
 
     @staticmethod
     def checkValidWriteAddress(address):
@@ -31,17 +30,16 @@ class StmDeviceObject:
     def checkValidReadAddress(address):
         pass
 
-    def densityFromFlashMemorySize(self, memory):
-        if memory > 16000 and memory < 64000:
-            return DeviceDensity.DEVICE_TYPE_LOW_DENSITY
-        elif memory > 64000 and memory < 256000:
-            return DeviceDensity.DEVICE_TYPE_MEDIUM_DENSITY
-        elif memory > 256000 and memory < 768000:
-            return DeviceDensity.DEVICE_TYPE_HIGH_DENSITY
-        elif memory > 768000:
-            return DeviceDensity.DEVICE_TYPE_XL_DENSITY
-        else:
-            return None
+    def unpackBootloaderVersion(self, value: bytes) -> float:
+        return float(".".join([c for c in str(hex(value)).strip("0x")]))
+
+    def unpackIdFromResponse(self, value: bytearray) -> int:
+        id_fmt = ">H"
+        return unpack(id_fmt, value)[0]
+
+    def unpackFlashSizeFromResponse(self, value: bytearray) -> int:
+        fs_fmt = ">H"
+        return unpack(fs_fmt, value)[0]
 
     def updateFromGETrsp(self, data: bytearray):
         self.bootloader_version = data[2]
@@ -58,26 +56,19 @@ class StmDeviceObject:
                 port=port,
                 baud=baud
             )
-        self.connected = True
-        return self.serialTool.connect()
-
-    def unpackDeviceInfo(self, id, info):
-        self.bootLoaderVersion = ".".join([c for c in str(hex(info[0])).strip("0x")])
-        for i in range(1, len(info)):
-            #TODO: A better class for commands 
-            # - commandFromCode
-            self.validCmds.append(info[i])
-        self.productId = id[0]
-        self.deviceId = id[1]
+        sleep(0.01)
+        self.connected = self.serialTool.connect()
+        return self.connected
 
     def getMapFromId(self):
         return None
 
-
-    def collectDeviceDetails(self):
+    def readDeviceInfo(self):
         """ collects the objects device characteristics 
             NOTE: probably shouldn't have so many exceptions here?
-            TODO: Google when to use exceptions
+            Use exceptions for now as this is a fundamental function which
+            requires multiple other commands to work in order to build 
+            Device model
         """
         if not self.connected:
             raise DeviceNotConnectedError("Device connection not started")
@@ -92,33 +83,39 @@ class StmDeviceObject:
         if not success:
             raise CommandFailedError("GetInfo Command failed")
 
-        success = self.unpackDeviceInfo(self, id, info)
-        
-        if not success:
-            raise UnpackInfoFailedError("Error unpacking the device info")
+        success, fs = self.serialTool.cmdReadFromMemoryAddress(0x1FFFF7E0, 2)
 
-        self.registerMap = self.getMapFromId()
+        if not success:
+            raise CommandFailedError(f"ReadMemory Command failed [Address 0x1FFFF7E0, len: 4]")
+
+        self.device = Device(
+            self.unpackBootloaderVersion(info[0]),
+            list(info[1:]),
+            self.unpackIdFromResponse(id),
+            self.unpackFlashSizeFromResponse(fs),
+            bytearray([]),
+            True
+        )
 
         return True
 
-
     def getDeviceBootloaderVersion(self):
-        if self.device_info == None or self.bootloader_read == False:
+        if self.device == None:
             raise InformationNotRetrieved("Bootloader version not read yet")
         else:
-            return self.device_info.bootloader_version
+            return self.device.bootloaderVersion
 
     def getDeviceValidCommands(self):
-        if self.device_info == None or self.valid_cmds_read == False:
+        if self.device == None:
             raise InformationNotRetrieved("Valid commands have not been read yet")
         else:
-            return self.device_info.valid_cmds
+            return self.device.validCommands
 
     def getDeviceId(self):
-        if self.device_info == None or self.device_id_read == False:
+        if self.device == None:
             raise InformationNotRetrieved("Device ID has not been read yet")
         else:
-            return self.device_info.device_id
+            return self.device.deviceType
 
 
 

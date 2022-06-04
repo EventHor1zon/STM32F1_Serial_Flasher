@@ -88,6 +88,7 @@ class SerialFlasherTestCase(unittest.TestCase):
     def testGetByteComplement(self):
         self.assertEqual(self.sf.getByteComplement(0xFE), 1)
 
+
     def testAppendChecksum(self):
         self.assertEqual(
             self.sf.appendChecksum(SF_TEST_SAMPLE_BYTES_NO_CHECKSUM),

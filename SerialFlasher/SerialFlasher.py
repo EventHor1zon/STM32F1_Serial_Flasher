@@ -146,6 +146,7 @@ class SerialTool:
 
     def reset(self):
         """ remove this... """
+        print("Resetting device via DTR pin")
         self.serial.setDTR(1)
         sleep(0.001)
         self.serial.setDTR(0)

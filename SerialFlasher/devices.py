@@ -1,9 +1,7 @@
-
-
-
 from dataclasses import dataclass
 from enum import Enum
 from dataclasses import dataclass
+from typing import List
 
 
 @dataclass
@@ -124,7 +122,7 @@ class DeviceMemoryMap:
     Peripheral("TIM3 timer", 0x40000400, 0x400007FF),
     Peripheral("TIM2 timer", 0x40000000, 0x400003FF),
 
-    Register("Flash Size", 0x1FFFF7E0, 4)
+    Register("Flash Size", 0x1FFFF7E0, 2)
     Register("UniqueId", 0x1FFFF7E8, 24)
 
     Region("MainMemoryStart", 0x0800000, 2000)
@@ -149,5 +147,13 @@ class DeviceMemoryMap:
     STMF1_FLASH_SIZE = 0x1FFFF7E0
 
 
+@dataclass
+class Device:
 
-
+    bootloaderVersion: str
+    validCommands: list
+    # deviceDensity: DeviceDensity
+    deviceType: int ## TODO: enumerate?
+    flashSize: int
+    deviceUid: bytearray
+    flashLockState: bool ## TODO: Map this somehow
