@@ -116,8 +116,6 @@ class STMInterface:
             raise InformationNotRetrieved("Device ID has not been read yet")
         else:
             return self.device.deviceType
-
-
-
+            
     def readOptionBytes(self):
         pass

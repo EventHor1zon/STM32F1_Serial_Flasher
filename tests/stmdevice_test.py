@@ -78,3 +78,33 @@ class STMInterfaceTestCase(unittest.TestCase):
         with self.assertRaises(InformationNotRetrieved):
             self.stm.getDeviceId()
 
+    def testWriteByteToRam(self):
+        """ test we can write a byte to RAM """
+        pass
+
+    #### Test using the Flash and option bytes ###
+
+    def testReadOptionBytes(self):
+        """ test we can read the flash option bytes """
+        pass
+
+    def testUnlockFlashOptionBytes(self):
+        """ test we can unlock the option bytes and allow them to be written into """
+        pass
+
+    def testReadFlashSegmentLock(self):
+        """ test we can retrieve the locked status of a flash section"""
+        pass
+
+    def testUnlockFlashSegment(self):
+        """ test we can unlock a flash segment using the access keys """
+        pass
+
+    def testLockFlashSegment(self):
+        """ test we can lock a flash segment using the access keys """
+        pass
+
+    def testWriteUserDataToOptionBytes(self):
+        """ test we can write to the user data segment of the option bytes """
+        pass
+

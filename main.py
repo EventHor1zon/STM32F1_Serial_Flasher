@@ -43,12 +43,34 @@ if __name__ == "__main__":
     else:
         print("Activity failed")
 
-    success, rx = sf.cmdReadFromMemoryAddress(0x1FFFF7E0, 2)
-    d = unpack(fmt, rx)
-    print(f"State: {success} Data {d}")
+    success, rx = sf.cmdReadFromMemoryAddress(0x1FFFF800, 1)
+    print(f"State {success}, rx {bin(rx[0])}")
 
-    success, rx = sf.cmdReadFromMemoryAddress(0x1FFFF7E8, 24)
-    print(f"State: {success} Data: {rx}")
+
+    # fmt = ">16B"
+
+    # nUsr, Usr, nRdp, Rdp, nD1, D1, nD0, D0, nWrp1, Wrp1, nWrp0, Wrp0, nWrp3, Wrp3, nWrp2, Wrp2 = unpack(fmt, rx)
+
+    # print(f"State {success}, rx {rx}")
+    # print(f"{bin(Usr)}|{bin(nUsr)} - {Rdp}|{nRdp}")
+    # print(f"{D1}|{nD1} - {D0}|{nD0}")
+    # print(f"{Wrp1}|{nWrp1} - {Wrp0}|{nWrp0}")
+    # print(f"{Wrp3}|{nWrp3} - {Wrp2}|{nWrp2}")
+
+    """
+    90|165 - 0|255
+    0|255  - 0|255
+    0|255  - 0|255
+    0|255  - 0|255
+
+    """
+
+    # success, rx = sf.cmdReadFromMemoryAddress(0x1FFFF7E0, 2)
+    # d = unpack(fmt, rx)
+    # print(f"State: {success} Data {d}")
+
+    # success, rx = sf.cmdReadFromMemoryAddress(0x1FFFF7E8, 24)
+    # print(f"State: {success} Data: {rx}")
 
     sf.reset()
 

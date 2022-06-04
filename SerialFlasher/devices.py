@@ -124,6 +124,10 @@ class DeviceMemoryMap:
 
     Register("Flash Size", 0x1FFFF7E0, 2)
     Register("UniqueId", 0x1FFFF7E8, 24)
+    Register("OptionByte1", 0x1FFFF800, 4)
+    Register("OptionByte2", 0x1FFFF804, 4)
+    Register("OptionByte3", 0x1FFFF808, 4)
+    Register("OptionByte4", 0x1FFFF80C, 4)
 
     Region("MainMemoryStart", 0x0800000, 2000)
     Region("Sytem memory", 0x1FFFF000, 2000) ## variable length depending on device type
