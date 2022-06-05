@@ -88,6 +88,7 @@ class STMInterface:
         if not success:
             raise CommandFailedError(f"ReadMemory Command failed [Address 0x1FFFF7E0, len: 4]")
 
+        ## TODO: don't like this
         self.device = Device(
             self.unpackBootloaderVersion(info[0]),
             list(info[1:]),
@@ -99,23 +100,30 @@ class STMInterface:
 
         return True
 
+
     def getDeviceBootloaderVersion(self):
         if self.device == None:
             raise InformationNotRetrieved("Bootloader version not read yet")
-        else:
-            return self.device.bootloaderVersion
+        return self.device.bootloaderVersion
 
     def getDeviceValidCommands(self):
         if self.device == None:
             raise InformationNotRetrieved("Valid commands have not been read yet")
-        else:
-            return self.device.validCommands
+        return self.device.validCommands
 
     def getDeviceId(self):
         if self.device == None:
             raise InformationNotRetrieved("Device ID has not been read yet")
-        else:
-            return self.device.deviceType
-            
+        return self.device.deviceType
+
+
+    def writeFlashKeys(self):
+        if not self.connected:
+            raise DeviceNotConnectedError
+
+
+    def writeToRam(self, data):
+        pass
+
     def readOptionBytes(self):
         pass

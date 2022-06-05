@@ -81,7 +81,12 @@ class STMInterfaceTestCase(unittest.TestCase):
     ### Test writing the key sequence to flash ###
 
     def testWriteFlashKeys(self):
-        pass
+        """ test we can write the flash keys and unlock the 
+            flash control register
+        """
+        a = self.stm.writeFlashkKeys()
+        self.assertTrue(a)
+
 
     ### Test writing and reading to RAM ###
 

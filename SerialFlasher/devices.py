@@ -78,56 +78,56 @@ class DeviceMemoryMap:
     usart1 = Peripheral("USART1", 0x40013800, 0x40013BFF),
     timer8 = Peripheral("TIM8 timer", 0x40013400, 0x400137FF),
     spi1 = Peripheral("SPI1", 0x40013000, 0x400133FF),
-    Peripheral("TIM1 timer", 0x40012C00, 0x40012FFF),
-    Peripheral("ADC2", 0x40012800, 0x40012BFF),
-    Peripheral("ADC1", 0x40012400, 0x400127FF),
-    Peripheral("GPIO Port G", 0x40012000, 0x400123FF),
-    Peripheral("GPIO Port F", 0x40011C00, 0x40011FFF),
-    Peripheral("GPIO Port E", 0x40011800, 0x40011BFF),
-    Peripheral("GPIO Port D", 0x40011400, 0x400117FF),
-    Peripheral("GPIO Port C", 0x40011000, 0x400113FF),
-    Peripheral("GPIO Port B", 0x40010C00, 0x40010FFF),
-    Peripheral("GPIO Port A", 0x40010800, 0x40010BFF),
-    Peripheral("EXTI", 0x40010400, 0x400107FF),
-    Peripheral("AFIO", 0x40010000, 0x400103FF),
-    Peripheral("Reserved", 0x40007800, 0x4000FFFF),
-    Peripheral("DAC", 0x40007400, 0x400077FF),
-    Peripheral("Power control PWR", 0x40007000, 0x400073FF),
-    Peripheral("Backup registers", 0x40006C00, 0x40006FFF),
-    Peripheral("bxCAN1", 0x40006400, 0x400067FF),
-    Peripheral("bxCAN2", 0x40006800, 0x40006BFF),
-    Peripheral("Shared USB/CAN SRAM", 0x40006000, 0x400063FF),
-    Peripheral("USB device FS registers", 0x40005C00, 0x40005FFF),
-    Peripheral("I2C2", 0x40005800, 0x40005BFF),
-    Peripheral("I2C1", 0x40005400, 0x400057FF),
-    Peripheral("UART5", 0x40005000, 0x400053FF),
-    Peripheral("UART4", 0x40004C00, 0x40004FFF),
-    Peripheral("USART3", 0x40004800, 0x40004BFF),
-    Peripheral("USART2", 0x40004400, 0x400047FF),
-    Peripheral("Reserved", 0x40004000, 0x400043FF),
-    Peripheral("SPI3/I2S", 0x40003C00, 0x40003FFF),
-    Peripheral("SPI2/I2S", 0x40003800, 0x40003BFF),
-    Peripheral("Reserved", 0x40003400, 0x400037FF),
-    Peripheral("Independent watchdog", 0x40003000, 0x400033FF),
-    Peripheral("Window watchdog", 0x40002C00, 0x40002FFF),
-    Peripheral("RTC", 0x40002800, 0x40002BFF),
-    Peripheral("Reserved", 0x40002400, 0x400027FF),
-    Peripheral("TIM14 timer", 0x40002000, 0x400023FF),
-    Peripheral("TIM13 timer", 0x40001C00, 0x40001FFF),
-    Peripheral("TIM12 timer", 0x40001800, 0x40001BFF),
-    Peripheral("TIM7 timer", 0x40001400, 0x400017FF),
-    Peripheral("TIM6 timer", 0x40001000, 0x400013FF),
-    Peripheral("TIM5 timer", 0x40000C00, 0x40000FFF),
-    Peripheral("TIM4 timer", 0x40000800, 0x40000BFF),
-    Peripheral("TIM3 timer", 0x40000400, 0x400007FF),
-    Peripheral("TIM2 timer", 0x40000000, 0x400003FF),
+    timer1 = Peripheral("TIM1 timer", 0x40012C00, 0x40012FFF),
+    adc2 = Peripheral("ADC2", 0x40012800, 0x40012BFF),
+    adc1 = Peripheral("ADC1", 0x40012400, 0x400127FF),
+    gpio_g = Peripheral("GPIO Port G", 0x40012000, 0x400123FF),
+    gpio_f = Peripheral("GPIO Port F", 0x40011C00, 0x40011FFF),
+    gpio_e = Peripheral("GPIO Port E", 0x40011800, 0x40011BFF),
+    gpio_d = Peripheral("GPIO Port D", 0x40011400, 0x400117FF),
+    gpio_c = Peripheral("GPIO Port C", 0x40011000, 0x400113FF),
+    gpio_b = Peripheral("GPIO Port B", 0x40010C00, 0x40010FFF),
+    gpio_a = Peripheral("GPIO Port A", 0x40010800, 0x40010BFF),
+    exti = Peripheral("EXTI", 0x40010400, 0x400107FF),
+    afio = Peripheral("AFIO", 0x40010000, 0x400103FF),
+    reserved8 = Peripheral("Reserved", 0x40007800, 0x4000FFFF),
+    dac = Peripheral("DAC", 0x40007400, 0x400077FF),
+    power_control = Peripheral("Power control PWR", 0x40007000, 0x400073FF),
+    backup = Peripheral("Backup registers", 0x40006C00, 0x40006FFF),
+    can1 = Peripheral("bxCAN1", 0x40006400, 0x400067FF),
+    can2 = Peripheral("bxCAN2", 0x40006800, 0x40006BFF),
+    shared_usb_can_sram = Peripheral("Shared USB/CAN SRAM", 0x40006000, 0x400063FF),
+    usb_fs = Peripheral("USB device FS registers", 0x40005C00, 0x40005FFF),
+    i2c2 = Peripheral("I2C2", 0x40005800, 0x40005BFF),
+    i2c1 = Peripheral("I2C1", 0x40005400, 0x400057FF),
+    uart5 = Peripheral("UART5", 0x40005000, 0x400053FF),
+    uart4 = Peripheral("UART4", 0x40004C00, 0x40004FFF),
+    usart3 = Peripheral("USART3", 0x40004800, 0x40004BFF),
+    usart2 = Peripheral("USART2", 0x40004400, 0x400047FF),
+    reserved9 = Peripheral("Reserved", 0x40004000, 0x400043FF),
+    spi3_i2s = Peripheral("SPI3/I2S", 0x40003C00, 0x40003FFF),
+    spi_i2s_2 = Peripheral("SPI2/I2S", 0x40003800, 0x40003BFF),
+    reserved10 = Peripheral("Reserved", 0x40003400, 0x400037FF),
+    wdt = Peripheral("Independent watchdog", 0x40003000, 0x400033FF),
+    window_wdt = Peripheral("Window watchdog", 0x40002C00, 0x40002FFF),
+    rtc = Peripheral("RTC", 0x40002800, 0x40002BFF),
+    reserved11 = Peripheral("Reserved", 0x40002400, 0x400027FF),
+    timer14 = Peripheral("TIM14 timer", 0x40002000, 0x400023FF),
+    timer13 = Peripheral("TIM13 timer", 0x40001C00, 0x40001FFF),
+    timer12 = Peripheral("TIM12 timer", 0x40001800, 0x40001BFF),
+    timer7 = Peripheral("TIM7 timer", 0x40001400, 0x400017FF),
+    timer6 = Peripheral("TIM6 timer", 0x40001000, 0x400013FF),
+    timer5 = Peripheral("TIM5 timer", 0x40000C00, 0x40000FFF),
+    timer4 = Peripheral("TIM4 timer", 0x40000800, 0x40000BFF),
+    timer3 = Peripheral("TIM3 timer", 0x40000400, 0x400007FF),
+    timer2 = Peripheral("TIM2 timer", 0x40000000, 0x400003FF),
 
-    Register("Flash Size", 0x1FFFF7E0, 2)
-    Register("UniqueId", 0x1FFFF7E8, 24)
-    Register("OptionByte1", 0x1FFFF800, 4)
-    Register("OptionByte2", 0x1FFFF804, 4)
-    Register("OptionByte3", 0x1FFFF808, 4)
-    Register("OptionByte4", 0x1FFFF80C, 4)
+    flash_size = Register("Flash Size", 0x1FFFF7E0, 2)
+    uid = Register("UniqueId", 0x1FFFF7E8, 24)
+    flash_opt1 = Register("OptionByte1", 0x1FFFF800, 4)
+    flash_opt2 = Register("OptionByte2", 0x1FFFF804, 4)
+    flash_opt3 = Register("OptionByte3", 0x1FFFF808, 4)
+    flash_opt4 = Register("OptionByte4", 0x1FFFF80C, 4)
 
     Region("MainMemoryStart", 0x0800000, 2000)
     Region("Sytem memory", 0x1FFFF000, 2000) ## variable length depending on device type
@@ -151,8 +151,7 @@ class DeviceMemoryMap:
     STMF1_FLASH_SIZE = 0x1FFFF7E0
 
 
-@dataclass
-class Device:
+class DeviceDescriptor:
 
     bootloaderVersion: str
     validCommands: list
@@ -161,3 +160,24 @@ class Device:
     flashSize: int
     deviceUid: bytearray
     flashLockState: bool ## TODO: Map this somehow
+
+
+    # 512 * 2kb XL density
+    # 256 * 2kb high density 
+    # 128 * 1kb medium density
+    # 32 * 1kb low density
+    # 128 * 2kb connectivity density
+    flash_page_size = 0
+    
+    # 770 * 64bits XL
+    # 2360 Connectivity
+    # 258 rest
+    flash_info_blk_size = 0
+
+    # 4kbB * 64bit low density
+    # 16kB * 64bits med
+    # 64kB * 64bits high
+    # 32kB * 64 conn 
+    flash_mem_size = 0
+
+    flash_control_register_locked = True
