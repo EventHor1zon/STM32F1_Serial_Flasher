@@ -78,8 +78,19 @@ class STMInterfaceTestCase(unittest.TestCase):
         with self.assertRaises(InformationNotRetrieved):
             self.stm.getDeviceId()
 
+    ### Test writing the key sequence to flash ###
+
+    def testWriteFlashKeys(self):
+        pass
+
+    ### Test writing and reading to RAM ###
+
     def testWriteByteToRam(self):
         """ test we can write a byte to RAM """
+        pass
+
+    def testReadByteFromRam(self):
+        """ test we can read a byte from RAM """
         pass
 
     #### Test using the Flash and option bytes ###
