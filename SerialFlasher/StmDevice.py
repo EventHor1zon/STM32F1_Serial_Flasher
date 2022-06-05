@@ -120,6 +120,10 @@ class STMInterface:
     def writeFlashKeys(self):
         if not self.connected:
             raise DeviceNotConnectedError
+        success, rx = self.serialTool.cmdWriteToMemoryAddress(
+            0x40022004, # flash key reg
+            
+        )
 
 
     def writeToRam(self, data):

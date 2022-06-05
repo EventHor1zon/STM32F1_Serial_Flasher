@@ -1,3 +1,5 @@
+
+
 class InformationNotRetrieved(Exception):
     pass
 
@@ -22,4 +24,7 @@ class CommandFailedError(Exception):
     pass
 
 class UnpackInfoFailedError(Exception):
+    pass
+
+class DeviceNotSupportedError(Exception):
     pass

@@ -60,7 +60,8 @@ SF_TEST_SAMPLE_BYTES_W_CHECKSUM = bytearray([0xA1, 0xA2, 0xA3, 0xA0])
 DEVICE_TEST_READ_ADDR_OPTIONBYTES = 0x1FFFF800
 DEVICE_TEST_READ_ADDR_OPTBYTES_LEN = 16
 DEVICE_TEST_READ_INVALID_ADDR = 0x02000000
-
+STM_SRAM_START_ADDRESS = 0x20002000
+SF_TEST_DUMMY_DATA = bytearray([0x41, 0x42, 0x43, 0x44])
 
 class SerialFlasherTestCase(unittest.TestCase):
     def setUp(self):
@@ -207,3 +208,22 @@ class SerialFlasherTestCase(unittest.TestCase):
         self.assertEqual(rx_row_0[0], (rx_row_0[1] ^ 0xFF))
         self.assertEqual(rx_row_1[2], (rx_row_1[3] ^ 0xFF))
 
+    def testReadRamMemoryAddress(self):
+        self.sf.connect()
+        success, rx = self.sf.cmdReadFromMemoryAddress(
+            STM_SRAM_START_ADDRESS, 4
+        )
+        self.assertTrue(success)
+
+
+    def testCmdWriteMemoryAddressRam(self):
+        self.sf.connect()
+        success = self.sf.cmdWriteToMemoryAddress(STM_SRAM_START_ADDRESS, SF_TEST_DUMMY_DATA)
+        self.assertTrue(success)
+
+    def testCmdWriteMemoryAddressProtected(self):
+        pass
+
+    def testCmdWriteReadMemoryAddressRam(self):
+        self.sf.connect()
+        success = self.sf.cmdWriteToMemoryAddress(STM_SRAM_START_ADDRESS, SF_TEST_DUMMY_DATA)

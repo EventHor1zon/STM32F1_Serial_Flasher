@@ -22,11 +22,11 @@ if __name__ == "__main__":
     sf.connect()
     success, rx = sf.cmdGetId()
 
-    if success:
-        d = unpack(fmt, rx)
-        print(f"Success! CmdId {[hex(b) for b in rx]} {rx} {d[0]}")
-    else:
-        print("Activity failed")
+    # if success:
+    #     d = unpack(fmt, rx)
+    #     print(f"Success! CmdId {[hex(b) for b in rx]} {rx} {d[0]}")
+    # else:
+    #     print("Activity failed")
 
     success, rx = sf.cmdGetInfo()
 
@@ -43,8 +43,8 @@ if __name__ == "__main__":
     else:
         print("Activity failed")
 
-    success, rx = sf.cmdReadFromMemoryAddress(0x1FFFF800, 1)
-    print(f"State {success}, rx {bin(rx[0])}")
+    # success, rx = sf.cmdReadFromMemoryAddress(0x1FFFF800, 1)
+    # print(f"State {success}, rx {bin(rx[0])}")
 
 
     # fmt = ">16B"
@@ -69,8 +69,8 @@ if __name__ == "__main__":
     # d = unpack(fmt, rx)
     # print(f"State: {success} Data {d}")
 
-    # success, rx = sf.cmdReadFromMemoryAddress(0x1FFFF7E8, 24)
-    # print(f"State: {success} Data: {rx}")
+    success, rx = sf.cmdReadFromMemoryAddress(0x2000000, 4)
+    print(f"State: {success} Data: {rx}")
 
     sf.reset()
 

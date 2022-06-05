@@ -1,7 +1,8 @@
 from dataclasses import dataclass
 from enum import Enum
 from dataclasses import dataclass
-from typing import List
+from .errors import DeviceNotSupportedError
+
 
 
 @dataclass
@@ -35,7 +36,12 @@ class Region:
     """ describes a region of memory space on the device """
     name: str
     start: int
-    size: int
+    end: int
+
+    @property
+    def size(self):
+        return (self.end - self.start)
+
 
 class DeviceCommands(Enum):
     GET_COMMAND = 0
@@ -50,21 +56,102 @@ class DeviceDensity(Enum):
     DEVICE_TYPE_XL_DENSITY = 4
 
 
+class DeviceType:
+
+    name: str
+    ram: Region
+    bootloader_ram: Region
+    pid: int
+    uid: int = 0
+    system_memory: Region
+
+    # 512 * 2kb XL density
+    # 256 * 2kb high density 
+    # 128 * 1kb medium density
+    # 32 * 1kb low density
+    # 128 * 2kb connectivity density
+    flash_page_size: int
+    flash_page_num: int
+    
+    # 770 * 64bits XL
+    # 2360 Connectivity
+    # 258 rest
+    flash_info_blk_size: int
+
+    # 4kbB * 64bit low density
+    # 16kB * 64bits med
+    # 64kB * 64bits high
+    # 32kB * 64 conn 
+    flash_mem_size: int
+
+    def __init__(self, pid):
+
+        # same across most devices, intialise first, overwrite if neccesary
+        self.bootloader_ram = Region("bootloader ram", 0x20000000, 0x200001FF)
+        self.system_memory = Region("system memory", 0x1FFFF000, 0x1FFFF7FF)
+
+        # select device characteristics from pid
+        if pid == 0x0412:
+            self.name = "stm32f10xxxLowDensity"
+            self.ram = Region("ram", 0x20000200, 0x200027FF)
+            self.flash_page_size = 1024
+            self.flash_page_num = 32
+            self.flash_info_blk_size = 258
+        elif pid == 0x0410:
+            self.name = "stm32f10xxxMedDensity"
+            self.ram = Region("ram", 0x20000200, 0x20004FFF)
+            self.flash_page_size = 1024
+            self.flash_page_num = 128
+            self.flash_info_blk_size = 258
+        elif pid == 0x0414:
+            self.name = "stm32f10xxxHighDensity"
+            self.ram = Region("ram", 0x20000200, 0x2000FFFF)
+            self.flash_page_size = 2048
+            self.flash_page_num = 256
+            self.flash_info_blk_size = 258
+        elif pid == 0x0420:
+            self.name = "stm32f10xxxMedDensityValueLine"
+            self.ram = Region("ram", 0x20000200, 0x20001FFF)
+            self.flash_page_size = 1024
+            self.flash_page_num = 128
+            self.flash_info_blk_size = 258
+        elif pid == 0x0428:
+            self.name = "stm32f10xxxHighDensityValueLine"
+            self.ram = Region("ram", 0x20000200, 0x20007FFF)
+            self.flash_page_size = 2048
+            self.flash_page_num = 256
+            self.flash_info_blk_size = 258          
+        elif pid == 0x0430:
+            self.name = "stm32f10xxxXlDensity"
+            self.ram = Region("ram", 0x20000800, 0x20017FFF)
+            self.system_memory = Region("system memory", 0x1FFFF000, 0x1FFF77FF)
+            self.flash_page_size = 2048
+            self.flash_page_num = 256
+            self.flash_info_blk_size = 258
+            self.bootloader_ram = Region("bootloader ram", 0x20000000, 0x200007FF)
+        else:
+            raise DeviceNotSupportedError("Either an invalid or unsupported product")
+
+        # flash memory region common
+        self.flash_memory = Region("flash memory", 0x08000000, (0x08000000 + (self.flash_page_num * self.flash_page_size)))
+
+
+
 class DeviceMemoryMap:
     """ describes a device's memory layout - this is just a gathering place for information currently 
         it will be updated to be a good representation of the connected device's memory
     """
 
-    _fsmc = Peripheral("FSMC", 0xA0000000, 0xA0000FFF),
-    _usb_otg_fs = Peripheral("USB OTG FS ", 0x50000000, 0x5003FFFF),
-    _reserved1 = Peripheral("Reserved", 0x40030000, 0x4FFFFFFF),
-    _ethernet = Peripheral("Ethernet", 0x40028000, 0x40029FFF),
-    _reserved2 = Peripheral("Reserved", 0x40023400, 0x40027FFF),
-    _crc_sect = Peripheral("CRC Section", 0x40023000, 0x400233FF),
-    _flash_mem = Peripheral("Flash memory interface", 0x40022000, 0x400223FF),
-    _reserved3 = Peripheral("Reserved", 0x40021400, 0x40021FFF),
-    _reset_clk_control = Peripheral("Reset and clock control RCC", 0x40021000, 0x400213FF),
-    _reserved4 = Peripheral("Reserved", 0x40020800, 0x40020FFF),
+    fsmc = Peripheral("FSMC", 0xA0000000, 0xA0000FFF),
+    usb_otg_fs = Peripheral("USB OTG FS ", 0x50000000, 0x5003FFFF),
+    reserved1 = Peripheral("Reserved", 0x40030000, 0x4FFFFFFF),
+    ethernet = Peripheral("Ethernet", 0x40028000, 0x40029FFF),
+    reserved2 = Peripheral("Reserved", 0x40023400, 0x40027FFF),
+    crc_sect = Peripheral("CRC Section", 0x40023000, 0x400233FF),
+    flash_mem = Peripheral("Flash memory interface", 0x40022000, 0x400223FF),
+    reserved3 = Peripheral("Reserved", 0x40021400, 0x40021FFF),
+    reset_clk_control = Peripheral("Reset and clock control RCC", 0x40021000, 0x400213FF),
+    reserved4 = Peripheral("Reserved", 0x40020800, 0x40020FFF),
     dma2 = Peripheral("DMA2", 0x40020400, 0x400207FF),
     dma1 = Peripheral("DMA1", 0x40020000, 0x400203FF),
     reserved5 = Peripheral("Reserved ", 0x40018400, 0x4001FFFF),
@@ -161,23 +248,3 @@ class DeviceDescriptor:
     deviceUid: bytearray
     flashLockState: bool ## TODO: Map this somehow
 
-
-    # 512 * 2kb XL density
-    # 256 * 2kb high density 
-    # 128 * 1kb medium density
-    # 32 * 1kb low density
-    # 128 * 2kb connectivity density
-    flash_page_size = 0
-    
-    # 770 * 64bits XL
-    # 2360 Connectivity
-    # 258 rest
-    flash_info_blk_size = 0
-
-    # 4kbB * 64bit low density
-    # 16kB * 64bits med
-    # 64kB * 64bits high
-    # 32kB * 64 conn 
-    flash_mem_size = 0
-
-    flash_control_register_locked = True
