@@ -19,9 +19,13 @@ from SerialFlasher.constants import *
 from .errors import (
     InformationNotRetrieved,
     InvalidAddressError,
-    InvalidReadLength,
+    InvalidReadLengthError,
     InvalidResponseLengthError,
-    AckNotReceivedError
+    AckNotReceivedError,
+    InvalidWriteLengthError,
+    NoResponseError,
+    UnexpectedResponseError,
+    InvalidEraseLengthError,
 )
 
 ## SerialFlasher Class
@@ -45,7 +49,7 @@ from .errors import (
 #
 #   Memory Area   Write command   Read command    Erase command       Go command
 #   Flash           Supported       Supported       Supported       Supported
-#   RAM Supported   Supported       Not supported   Supported
+#   RAM             Supported       Supported       Not supported   Supported
 #   System Memory   Not supported   Supported       Not supported   Not supported
 #   Data Memory     Supported       Supported       Not supported   Not supported
 #   OTP Memory      Supported       Supported       Not supported   Not supported
@@ -160,6 +164,7 @@ class SerialTool:
             \param baud - the baud rate to communicate at
             \param serial - the serial object to use
         """
+
         if serial is not None:
             self.serial = serial
             self.port = serial.port
@@ -246,17 +251,18 @@ class SerialTool:
         """ \brief Wait for an ack byte from the device
             \param timeout - the time to wait for the ack byte
         """
-
         if self.serial.timeout == None or self.serial.write_timeout == None:
             self.setSerialReadWriteTimeout(timeout)
         rx = self.serial.read_until(bytes([STM_CMD_ACK]), size=1)
+        if len(rx) < 1:
+            raise NoResponseError
         if STM_CMD_ACK in rx:
             return True
         elif STM_CMD_NACK in rx:
             return False
         else:
-            ## TODO: raise invalid byte error or return false?
-            return False
+            raise UnexpectedResponseError(f"Invalid response byte received: {hex(rx[0])}")
+            
 
     ##============== Device Interaction =========##
 
@@ -344,7 +350,7 @@ class SerialTool:
 
         # check read length
         if length > 255 or length < 1:
-            raise InvalidReadLength(
+            raise InvalidReadLengthError(
                 "Read length must be > 0 and < 256 bytes"
             )
 
@@ -379,16 +385,128 @@ class SerialTool:
 
     def cmdWriteToMemoryAddress(self, address, data):
         """ write data to a memory address """
-        pass
+        if len(data) > 256 or len(data) < 1:
+            raise InvalidWriteLengthError
+        
+        if len(data) % 4 > 0:
+            raise InvalidWriteLengthError("Must be a multiple of 4 bytes")
 
-    def cmdWriteEnable(self):
-        """ """
-        pass
+        commands = bytearray(
+            [STM_CMD_WRITE_MEM, self.getByteComplement(STM_CMD_WRITE_MEM),]
+        )
+        
+        # address bytes
+        address_bytes = self.addressToBytes(address)
+        address_bytes = self.appendChecksum(address_bytes)
+        
+        # write the length (N) and N+1 (????) data bytes and Checksum^N
+        tx_data = bytearray([len(data)-1])
+        tx_data += data
+        tx_data = self.appendChecksum(tx_data)
+
+        success = self.writeAndWaitAck(commands)
+
+        if success:
+            success = self.writeAndWaitAck(address_bytes)
+        
+        if success:
+            # no NACK returned if invalid write area
+            # try:
+            success = self.writeAndWaitAck(tx_data)
+            # except NoResponseError:
+            #     """ want to raise an exception with a specific message"""
+            #     raise NoResponseError("Invalid write address")
+
+        return success
+
+
+    def cmdEraseFlashMemoryPages(self, pages: bytearray):
+        """ send the flash erase """
+        if len(pages) < 1 or len(pages) > 256:
+            raise InvalidEraseLengthError
+
+        commands = bytearray([
+            STM_CMD_ERASE_MEM,
+            self.getByteComplement(STM_CMD_ERASE_MEM),
+        ])
+
+        tx_data = bytearray([
+            len(pages)-1,
+        ])
+        tx_data += pages
+        tx_data = self.appendChecksum(tx_data)
+
+        success = self.writeAndWaitAck(commands)
+
+        if success:
+            success = self.writeAndWaitAck(tx_data)
+
+        return success
+
+    def cmdEraseFlashMemory(self):
+        """ send the flash erase all command """
+
+        commands = bytearray([
+            STM_CMD_ERASE_MEM,
+            self.getByteComplement(STM_CMD_ERASE_MEM),
+        ])
+
+        tx_data = bytearray([
+            0xFF,
+        ])
+
+        success = self.writeAndWaitAck(commands)
+
+        if success:
+            success = self.writeAndWaitAck(tx_data)
+        
+        return success
+
+
+    def cmdWriteProtect(self, sectors: bytearray):
+        if len(sectors) < 1 or len(sectors) > 256:
+            raise InvalidWriteLengthError("Invalid sector length") 
+
+        commands = bytearray([
+            STM_CMD_WRITE_PROTECT_EN,
+            self.getByteComplement(STM_CMD_WRITE_PROTECT_EN),
+        ])
+
+        tx_data = bytearray([
+            len(sectors)-1,
+        ])
+        tx_data += sectors
+        tx_data = self.appendChecksum(tx_data)
+
+        success = self.writeAndWaitAck(commands)
+
+        if success:
+            success = self.writeAndWaitAck(tx_data)
+        
+        ## once the write protect command is complete, the device 
+        ## resets, so set connected to false
+        if success:
+            self.connected = False
+
+        return success
+
+    def cmdWriteUnprotect(self):
+        """ send the command to unprotect write """
+        commands = bytearray([
+            STM_CMD_WRITE_PROTECT_DIS,
+            self.getByteComplement(STM_CMD_WRITE_PROTECT_DIS),
+        ])
+
+        first_ack = self.writeAndWaitAck(commands)
+
+        second_ack = self.waitForAck()
+
+        return (first_ack & second_ack)
 
     def cmdReadoutProtect(self):
         pass
 
-    def cmdReadoutProtectOff(self):
+    def cmdReadoutUnprotect(self):
         pass
 
     def cmdGoToAddress(self, address):

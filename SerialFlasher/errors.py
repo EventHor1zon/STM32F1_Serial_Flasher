@@ -6,7 +6,10 @@ class InformationNotRetrieved(Exception):
 class InvalidAddressError(Exception):
     pass
 
-class InvalidReadLength(Exception):
+class InvalidReadLengthError(Exception):
+    pass
+
+class InvalidWriteLengthError(Exception):
     pass
 
 class InvalidResponseLengthError(Exception):
@@ -15,7 +18,14 @@ class InvalidResponseLengthError(Exception):
 class AckNotReceivedError(Exception):
     pass
 
+class NoResponseError(Exception):
+    pass
 
+class UnexpectedResponseError(Exception):
+    pass
+
+class InvalidEraseLengthError(Exception):
+    pass
 
 class DeviceNotConnectedError(Exception):
     pass

@@ -3,7 +3,11 @@ from enum import Enum
 from dataclasses import dataclass
 from .errors import DeviceNotSupportedError
 
-
+STM32_F1_FLASH_KEYS = {
+    'RDPRT_KEY' : 0x00A5,
+    'KEY_1': 0x45670123,
+    'KEY_2': 0xCDEF89AB,
+}
 
 @dataclass
 class Register:
@@ -228,11 +232,7 @@ class DeviceMemoryMap:
     Region("FLASH_OBR", 0x4002201C, 4)     ## option byte register
     Region("FLASH_WRPR", 0x40022020, 4)    ## write protect register
 
-    flash_keys = {
-        'RDPRT_KEY' : 0x00A5,
-        'KEY_1': 0x45670123,
-        'KEY_2': 0xCDEF89AB,
-    }
+
 
     STMF1_SRAM_START = 0x20000000
     STMF1_FLASH_SIZE = 0x1FFFF7E0

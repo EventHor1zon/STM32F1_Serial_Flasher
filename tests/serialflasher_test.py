@@ -29,7 +29,7 @@ from SerialFlasher.constants import *
 import sys
 from time import sleep
 
-from SerialFlasher.errors import InvalidAddressError
+from SerialFlasher.errors import InvalidAddressError, NoResponseError
 
 
 # a non-existent serial port
@@ -38,9 +38,15 @@ DEVICE_SERIAL_BAUD = 57600
 DEVICE_SERIAL_WRT_TIMEOUT_S = 1.0
 DEVICE_SERIAL_RD_TIMEOUT_S = 1.0
 
+DEVICE_SRAM_START_ADDRESS = 0x20004000
+DEVICE_SRAM_BOOTLOADER_ADDRESS = 0x20000000
+DEVICE_ADDR_OPTIONBYTES = 0x1FFFF800
+
 ## may have to refine this based on testing device!
 DEVICE_ID_EXPECTED_BYTES = b"\x04\x10"
 DEVICE_VALID_BOOTLOADER_VERSION = 11
+
+# valid bootloader commands
 DEVICE_VALID_CMDS = [
     STM_CMD_GET,
     STM_CMD_VERSION_READ_PROTECT,
@@ -54,14 +60,16 @@ DEVICE_VALID_CMDS = [
     STM_CMD_READOUT_PROTECT_EN,
     STM_CMD_READOUT_PROTECT_DIS,
 ]
+
+SF_TEST_READ_ADDR_OPTBYTES_LEN = 16
+
+# dummy data and flash pages
+SF_TEST_DUMMY_DATA = bytearray([0x41, 0x42, 0x43, 0x44])
+SF_TEST_FLASH_PAGES_ERASE = bytearray([0,1,2,3,4])
+SF_TEST_WRITE_PROTECT_SECTORS = bytearray([0x01, 0x02])
 ## checksum8 XOR from https://www.scadacore.com/tools/programming-calculators/online-checksum-calculator/
 SF_TEST_SAMPLE_BYTES_NO_CHECKSUM = bytearray([0xA1, 0xA2, 0xA3])
 SF_TEST_SAMPLE_BYTES_W_CHECKSUM = bytearray([0xA1, 0xA2, 0xA3, 0xA0])
-DEVICE_TEST_READ_ADDR_OPTIONBYTES = 0x1FFFF800
-DEVICE_TEST_READ_ADDR_OPTBYTES_LEN = 16
-DEVICE_TEST_READ_INVALID_ADDR = 0x02000000
-STM_SRAM_START_ADDRESS = 0x20002000
-SF_TEST_DUMMY_DATA = bytearray([0x41, 0x42, 0x43, 0x44])
 
 class SerialFlasherTestCase(unittest.TestCase):
     def setUp(self):
@@ -188,11 +196,11 @@ class SerialFlasherTestCase(unittest.TestCase):
             read a known fixed value from the device...
             let's go look at the data sheet...
             option byte seems a good target
-            also the flash CR 
+            also the flash CR - needs unlocked
          """
         self.sf.connect()
         success, rx = self.sf.cmdReadFromMemoryAddress(
-            DEVICE_TEST_READ_ADDR_OPTIONBYTES, DEVICE_TEST_READ_ADDR_OPTBYTES_LEN
+            DEVICE_ADDR_OPTIONBYTES, SF_TEST_READ_ADDR_OPTBYTES_LEN
         )
         self.assertTrue(success)
         """ as detailed in Rev 2 1/31 PM0075 flash option bytes 
@@ -209,21 +217,52 @@ class SerialFlasherTestCase(unittest.TestCase):
         self.assertEqual(rx_row_1[2], (rx_row_1[3] ^ 0xFF))
 
     def testReadRamMemoryAddress(self):
+        """ test we can read from a ram address """
         self.sf.connect()
         success, rx = self.sf.cmdReadFromMemoryAddress(
-            STM_SRAM_START_ADDRESS, 4
+            DEVICE_SRAM_START_ADDRESS, 4
         )
         self.assertTrue(success)
 
 
     def testCmdWriteMemoryAddressRam(self):
         self.sf.connect()
-        success = self.sf.cmdWriteToMemoryAddress(STM_SRAM_START_ADDRESS, SF_TEST_DUMMY_DATA)
+        success = self.sf.cmdWriteToMemoryAddress(DEVICE_SRAM_START_ADDRESS, SF_TEST_DUMMY_DATA)
         self.assertTrue(success)
 
     def testCmdWriteMemoryAddressProtected(self):
-        pass
+        self.sf.connect()
+        success = self.sf.cmdWriteToMemoryAddress(DEVICE_SRAM_BOOTLOADER_ADDRESS, SF_TEST_DUMMY_DATA)
+        self.assertFalse(success)
 
     def testCmdWriteReadMemoryAddressRam(self):
         self.sf.connect()
-        success = self.sf.cmdWriteToMemoryAddress(STM_SRAM_START_ADDRESS, SF_TEST_DUMMY_DATA)
+        success = self.sf.cmdWriteToMemoryAddress(DEVICE_SRAM_START_ADDRESS, SF_TEST_DUMMY_DATA)
+        self.assertTrue(success)
+        success, rx = self.sf.cmdReadFromMemoryAddress(DEVICE_SRAM_START_ADDRESS, len(SF_TEST_DUMMY_DATA))
+        self.assertTrue(success)
+        self.assertEqual(rx, SF_TEST_DUMMY_DATA)
+
+    # def testCmdEraseFlashPage(self):
+    #     self.sf.connect()
+    #     success = self.sf.cmdEraseFlashMemoryPages(SF_TEST_FLASH_PAGES_ERASE)
+    #     self.assertTrue(success)
+
+    def testCmdWriteProtect(self):
+        """ test command write protect succeeds - 
+            TODO: should check the 
+                 the option bytes to confirm
+        """
+        self.sf.connect()
+        success = self.sf.cmdWriteProtect(SF_TEST_WRITE_PROTECT_SECTORS)
+        self.assertTrue(success)
+
+    def testCmdWriteUnprotect(self):
+        self.sf.connect()
+        success = self.sf.cmdWriteUnprotect()
+        self.assertTrue(success)
+
+    def testCmdReadProtect(self):
+        self.sf.connect()
+        success = self.testCmdReadProtect()
+        self.assertTrue(success)
