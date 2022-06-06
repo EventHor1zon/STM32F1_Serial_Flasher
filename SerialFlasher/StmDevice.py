@@ -1,7 +1,7 @@
 from .SerialFlasher import SerialTool
 from .constants import *
 from .errors import *
-from .devices import DeviceDensity , Device
+from .devices import DeviceDensity, DeviceType
 from struct import unpack
 from time import sleep
 
@@ -74,56 +74,58 @@ class STMInterface:
             raise DeviceNotConnectedError("Device connection not started")
 
         success, id = self.serialTool.cmdGetId()
-
+    
         if not success:
             raise CommandFailedError("GetId Command failed")
+
+        pid = self.unpackIdFromResponse(id)
 
         success, info = self.serialTool.cmdGetInfo()
 
         if not success:
             raise CommandFailedError("GetInfo Command failed")
 
+        bl_version = self.unpackBootloaderVersion(info)
+
         success, fs = self.serialTool.cmdReadFromMemoryAddress(0x1FFFF7E0, 2)
 
         if not success:
             raise CommandFailedError(f"ReadMemory Command failed [Address 0x1FFFF7E0, len: 4]")
 
-        ## TODO: don't like this
-        self.device = Device(
-            self.unpackBootloaderVersion(info[0]),
-            list(info[1:]),
-            self.unpackIdFromResponse(id),
-            self.unpackFlashSizeFromResponse(fs),
-            bytearray([]),
-            True
-        )
+        flashsize = self.unpackFlashSizeFromResponse(fs)
+
+        print(f"Creating device descriptor from id {hex(pid)}")
+        self.device = DeviceType(pid, bl_version)
+
+        print(f"DeviceType flash mem: {self.device.flash_memory.size} fs: {flashsize}")
 
         return True
 
 
-    def getDeviceBootloaderVersion(self):
-        if self.device == None:
-            raise InformationNotRetrieved("Bootloader version not read yet")
-        return self.device.bootloaderVersion
 
-    def getDeviceValidCommands(self):
-        if self.device == None:
-            raise InformationNotRetrieved("Valid commands have not been read yet")
-        return self.device.validCommands
+    # def getDeviceBootloaderVersion(self):
+    #     if self.device == None:
+    #         raise InformationNotRetrieved("Bootloader version not read yet")
+    #     return self.device.bootloaderVersion
 
-    def getDeviceId(self):
-        if self.device == None:
-            raise InformationNotRetrieved("Device ID has not been read yet")
-        return self.device.deviceType
+    # def getDeviceValidCommands(self):
+    #     if self.device == None:
+    #         raise InformationNotRetrieved("Valid commands have not been read yet")
+    #     return self.device.validCommands
+
+    # def getDeviceId(self):
+    #     if self.device == None:
+    #         raise InformationNotRetrieved("Device ID has not been read yet")
+    #     return self.device.deviceType
 
 
-    def writeFlashKeys(self):
-        if not self.connected:
-            raise DeviceNotConnectedError
-        success, rx = self.serialTool.cmdWriteToMemoryAddress(
-            0x40022004, # flash key reg
+    # def writeFlashKeys(self):
+    #     if not self.connected:
+    #         raise DeviceNotConnectedError
+    #     success, rx = self.serialTool.cmdWriteToMemoryAddress(
+    #         0x40022004, # flash key reg
             
-        )
+    #     )
 
 
     def writeToRam(self, data):

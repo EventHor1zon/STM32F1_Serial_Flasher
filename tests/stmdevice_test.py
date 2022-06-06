@@ -100,9 +100,12 @@ class STMInterfaceTestCase(unittest.TestCase):
 
     #### Test using the Flash and option bytes ###
 
-    def testReadOptionBytes(self):
-        """ test we can read the flash option bytes """
-        pass
+    def testReadOptionBytesData(self):
+        self.sf.connect()
+        success, rx = self.sf.readFlashOptionBytesData()
+        self.assertTrue(success)
+        self.assertEqual(rx, DEVICE_OPTION_BYTES_LEN)
+
 
     def testUnlockFlashOptionBytes(self):
         """ test we can unlock the option bytes and allow them to be written into """

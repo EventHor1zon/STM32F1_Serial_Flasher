@@ -37,6 +37,7 @@ DEVICE_SERIAL_PORT = "/dev/ttyUSB0"
 DEVICE_SERIAL_BAUD = 57600
 DEVICE_SERIAL_WRT_TIMEOUT_S = 1.0
 DEVICE_SERIAL_RD_TIMEOUT_S = 1.0
+DEVICE_OPTION_BYTES_LEN = 16
 
 DEVICE_SRAM_START_ADDRESS = 0x20004000
 DEVICE_SRAM_BOOTLOADER_ADDRESS = 0x20000000
@@ -224,7 +225,6 @@ class SerialFlasherTestCase(unittest.TestCase):
         )
         self.assertTrue(success)
 
-
     def testCmdWriteMemoryAddressRam(self):
         self.sf.connect()
         success = self.sf.cmdWriteToMemoryAddress(DEVICE_SRAM_START_ADDRESS, SF_TEST_DUMMY_DATA)
@@ -266,3 +266,6 @@ class SerialFlasherTestCase(unittest.TestCase):
         self.sf.connect()
         success = self.testCmdReadProtect()
         self.assertTrue(success)
+
+    def testCmdReadUnprotect(self):
+        pass
