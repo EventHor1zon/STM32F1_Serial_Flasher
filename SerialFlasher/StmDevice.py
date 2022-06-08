@@ -31,7 +31,7 @@ class STMInterface:
         pass
 
     def unpackBootloaderVersion(self, value: bytes) -> float:
-        return float(".".join([c for c in str(hex(value)).strip("0x")]))
+        return float(".".join([c for c in str(hex(value[0])).strip("0x")]))
 
     def unpackIdFromResponse(self, value: bytearray) -> int:
         id_fmt = ">H"
@@ -40,15 +40,6 @@ class STMInterface:
     def unpackFlashSizeFromResponse(self, value: bytearray) -> int:
         fs_fmt = ">H"
         return unpack(fs_fmt, value)[0]
-
-    def updateFromGETrsp(self, data: bytearray):
-        self.bootloader_version = data[2]
-        self.valid_cmds = data[3:13]
-
-    def updateFromIDrsp(self, data: bytearray):
-        pid_msb = data[2]
-        pid_lsb = data[3]
-        self.device_id = (pid_msb << 8) | pid_lsb
 
     def connectToDevice(self, port: str, baud: int = 9600):
         if self.serialTool == None:
@@ -59,9 +50,6 @@ class STMInterface:
         sleep(0.01)
         self.connected = self.serialTool.connect()
         return self.connected
-
-    def getMapFromId(self):
-        return None
 
     def readDeviceInfo(self):
         """ collects the objects device characteristics 
@@ -86,8 +74,6 @@ class STMInterface:
             raise CommandFailedError("GetInfo Command failed")
 
         bl_version = self.unpackBootloaderVersion(info)
-
-        success, fs = self.serialTool.cmdReadFromMemoryAddress(0x1FFFF7E0, 2)
 
         if not success:
             raise CommandFailedError(f"ReadMemory Command failed [Address 0x1FFFF7E0, len: 4]")
