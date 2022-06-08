@@ -14,13 +14,6 @@
 ############################################
 
 
-VALID_PORT = "/dev/ttyUSB0"
-INVALID_PORT = "/dev/ttyS0"
-
-CMD_HANDSHAKE = b"\x79"
-STM_ACK = b"\x7F"
-
-from asyncore import write
 import unittest
 import serial
 import SerialFlasher.SerialFlasher as SF
@@ -31,6 +24,11 @@ from time import sleep
 
 from SerialFlasher.errors import InvalidAddressError, NoResponseError
 
+VALID_PORT = "/dev/ttyUSB0"
+INVALID_PORT = "/dev/ttyS0"
+
+CMD_HANDSHAKE = b"\x79"
+STM_ACK = b"\x7F"
 
 # a non-existent serial port
 DEVICE_SERIAL_PORT = "/dev/ttyUSB0"
