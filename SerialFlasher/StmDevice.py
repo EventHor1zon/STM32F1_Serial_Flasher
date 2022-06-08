@@ -1,4 +1,5 @@
 from .SerialFlasher import SerialTool
+from utilities import unpack16BitInt
 from .constants import *
 from .errors import *
 from .devices import DeviceDensity, DeviceType
@@ -22,27 +23,17 @@ class STMInterface:
         self.connected = False if serialTool is None else serialTool.getConnectedState()
         self.device = None
 
-    @staticmethod
     def checkValidWriteAddress(address):
         pass
 
-    @staticmethod
     def checkValidReadAddress(address):
         pass
 
     def unpackBootloaderVersion(self, value: bytes) -> float:
         return float(".".join([c for c in str(hex(value[0])).strip("0x")]))
 
-    def unpackIdFromResponse(self, value: bytearray) -> int:
-        id_fmt = ">H"
-        return unpack(id_fmt, value)[0]
-
-    def unpackFlashSizeFromResponse(self, value: bytearray) -> int:
-        fs_fmt = ">H"
-        return unpack(fs_fmt, value)[0]
-
     def connectToDevice(self, port: str, baud: int = 9600):
-        if self.serialTool == None:
+        if self.serialTool is None:
             self.serialTool = SerialTool(
                 port=port,
                 baud=baud
@@ -52,7 +43,8 @@ class STMInterface:
         return self.connected
 
     def readDeviceInfo(self):
-        """ collects the objects device characteristics 
+        """ collects the object's id and bootloader version
+            and creates a device model from it 
             NOTE: probably shouldn't have so many exceptions here?
             Use exceptions for now as this is a fundamental function which
             requires multiple other commands to work in order to build 
@@ -66,7 +58,7 @@ class STMInterface:
         if not success:
             raise CommandFailedError("GetId Command failed")
 
-        pid = self.unpackIdFromResponse(id)
+        pid = unpack16BitInt(id)
 
         success, info = self.serialTool.cmdGetInfo()
 
@@ -75,16 +67,12 @@ class STMInterface:
 
         bl_version = self.unpackBootloaderVersion(info)
 
-        if not success:
-            raise CommandFailedError(f"ReadMemory Command failed [Address 0x1FFFF7E0, len: 4]")
-
-        print(f"Creating device descriptor from id {hex(pid)}")
         self.device = DeviceType(pid, bl_version)
-
-        print(f"DeviceType flash mem: {self.device.flash_memory.size} fs: {flashsize}")
 
         return True
 
+    def readOptionBytes(self):
+        pass
 
 
     # def getDeviceBootloaderVersion(self):

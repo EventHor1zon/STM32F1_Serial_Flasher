@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from struct import unpack
 from enum import Enum
 from dataclasses import dataclass
 from collections import namedtuple
@@ -175,6 +176,14 @@ class DeviceType:
             (0x08000000 + (self.flash_page_num * self.flash_page_size)),
         )
 
+        # the flash option bytes should be read in their entirety
+        # so use region rather than Register
+        self.flash_option_bytes = Region("OptionBytes", 0x1FFFF800, 0x1FFF800 + 16)
+
+        self.option_bytes_contents = FlashOptionBytes
+
+        def updateOptionBytes(self, data: bytearray) -> None:
+            self.optionbytes = FlashOptionBytes._make(unpack(">16B", data))
 
 class DeviceMemoryMap:
     """ describes a device's memory layout - this is just a gathering place for information currently 
