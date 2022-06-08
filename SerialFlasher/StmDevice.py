@@ -78,8 +78,6 @@ class STMInterface:
         if not success:
             raise CommandFailedError(f"ReadMemory Command failed [Address 0x1FFFF7E0, len: 4]")
 
-        flashsize = self.unpackFlashSizeFromResponse(fs)
-
         print(f"Creating device descriptor from id {hex(pid)}")
         self.device = DeviceType(pid, bl_version)
 
