@@ -11,6 +11,7 @@ STM32_F1_FLASH_KEYS = {
     "KEY_2": 0xCDEF89AB,
 }
 
+
 FlashOptionBytes = namedtuple(
     "FlashOptionBytes",
     [
@@ -32,6 +33,8 @@ FlashOptionBytes = namedtuple(
         "writeProt2",
     ],
 )
+
+
 
 
 @dataclass
@@ -180,10 +183,13 @@ class DeviceType:
         # so use region rather than Register
         self.flash_option_bytes = Region("OptionBytes", 0x1FFFF800, 0x1FFF800 + 16)
 
-        self.option_bytes_contents = FlashOptionBytes
+        ## fill this in on demand
+        self.option_bytes_contents = None
 
-        def updateOptionBytes(self, data: bytearray) -> None:
-            self.optionbytes = FlashOptionBytes._make(unpack(">16B", data))
+    def updateOptionBytes(self, data: bytearray) -> None:
+        self.option_bytes_contents = FlashOptionBytes._make(unpack(">16B", data))
+
+
 
 class DeviceMemoryMap:
     """ describes a device's memory layout - this is just a gathering place for information currently 
@@ -266,21 +272,21 @@ class DeviceMemoryMap:
     flash_opt3 = Register("OptionByte3", 0x1FFFF808, 4)
     flash_opt4 = Register("OptionByte4", 0x1FFFF80C, 4)
 
-    Region("MainMemoryStart", 0x0800000, 2000)
-    Region(
+    main_mem = Region("MainMemoryStart", 0x0800000, 2000)
+    sys_mem = Region(
         "Sytem memory", 0x1FFFF000, 2000
     )  ## variable length depending on device type
-    Region("OptionBytes", 0x1FFFF800, 16)
-    Region("FLASH_ACR", 0x40022000, 4)
-    Region(
+    flash_option_bytes = Region("OptionBytes", 0x1FFFF800, 16)
+    flash_acr = Register("FLASH_ACR", 0x40022000, 4)
+    flash_kr = Register(
         "FLASH_KEYR", 0x40022004, 4,
     )
-    Region("FLASH_OPTKEYR", 0x40022008, 4)
-    Region("FLASH_SR", 0x4002200C, 4),  ## status refister
-    Region("FLASH_CR", 0x40022010, 4)  ## control register
-    Region("FLASH_AR", 0x40022014, 4)  ## address register
-    Region("FLASH_OBR", 0x4002201C, 4)  ## option byte register
-    Region("FLASH_WRPR", 0x40022020, 4)  ## write protect register
+    flash_optkey = Register("FLASH_OPTKEYR", 0x40022008, 4)
+    flash_status_reg = Register("FLASH_SR", 0x4002200C, 4),  ## status refister
+    flash_control_reg = Register("FLASH_CR", 0x40022010, 4)  ## control register
+    flash_addr_reg = Register("FLASH_AR", 0x40022014, 4)  ## address register
+    flash_optbyte_reg = Register("FLASH_OBR", 0x4002201C, 4)  ## option byte register
+    flash_wrprot_reg = Register("FLASH_WRPR", 0x40022020, 4)  ## write protect register
 
     STMF1_SRAM_START = 0x20000000
     STMF1_FLASH_SIZE = 0x1FFFF7E0

@@ -386,7 +386,7 @@ class SerialTool:
         address_bytes = self.addressToBytes(address)
         address_bytes = self.appendChecksum(address_bytes)
         # length bytes
-        length_bytes = bytearray([length, self.getByteComplement(length),])
+        length_bytes = bytearray([length-1, self.getByteComplement(length-1),])
 
         # write the command, address & length to the device
         success = self.writeAndWaitAck(commands)
@@ -567,9 +567,13 @@ class SerialTool:
             self.getByteComplement(STM_CMD_READOUT_PROTECT_DIS),
         ])
 
-        first_ack = self.writeAndWaitAck(commands)
+        success = self.writeDevice(commands)
 
-        second_ack = self.waitForAck()
+        if success:
+            print("First ack")
+            first_ack = self.waitForAck()
+            print("second ack")
+            second_ack = self.waitForAck(timeout=10)
         self.connected = False
 
         return (first_ack & second_ack)

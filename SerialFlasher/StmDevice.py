@@ -1,8 +1,8 @@
 from .SerialFlasher import SerialTool
-from utilities import unpack16BitInt
+from .utilities import unpack16BitInt
 from .constants import *
 from .errors import *
-from .devices import DeviceDensity, DeviceType
+from .devices import DeviceDensity, DeviceType, DeviceMemoryMap
 from struct import unpack
 from time import sleep
 
@@ -72,8 +72,23 @@ class STMInterface:
         return True
 
     def readOptionBytes(self):
-        pass
+        
+        if not self.connected:
+            raise DeviceNotConnectedError
 
+        success, rx = self.serialTool.cmdReadFromMemoryAddress(
+            self.device.flash_option_bytes.start,
+            16,
+        )
+
+        if success:
+            if self.device is not None:
+                try:
+                    self.device.updateOptionBytes(rx)
+                except:
+                    success = False
+
+        return success
 
     # def getDeviceBootloaderVersion(self):
     #     if self.device == None:
@@ -103,5 +118,3 @@ class STMInterface:
     def writeToRam(self, data):
         pass
 
-    def readOptionBytes(self):
-        pass
