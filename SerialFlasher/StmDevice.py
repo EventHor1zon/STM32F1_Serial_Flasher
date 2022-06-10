@@ -23,10 +23,10 @@ class STMInterface:
         self.connected = False if serialTool is None else serialTool.getConnectedState()
         self.device = None
 
-    def checkValidWriteAddress(address):
+    def checkValidWriteAddress(self, address):
         pass
 
-    def checkValidReadAddress(address):
+    def checkValidReadAddress(self, address):
         pass
 
     def unpackBootloaderVersion(self, value: bytes) -> float:
