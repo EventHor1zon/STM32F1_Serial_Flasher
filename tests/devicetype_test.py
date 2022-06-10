@@ -43,8 +43,9 @@ class DeviceTypeTestCase(unittest.TestCase):
         xl_dev = DeviceType(DEV_TEST_XL_DEVICE_ID, DEV_TEST_VALID_BOOTLOADER_ID)
         self.assertEqual(xl_dev.flash_memory.size, xl_dev.flash_page_num * xl_dev.flash_page_size)
 
-    
-    # namedtuple is not a specific type
-    # def testOptionBytesType(self):
-    #     dev = DeviceType(DEV_TEST_VALID_DEVICE_ID, DEV_TEST_VALID_BOOTLOADER_ID)
-    #     self.assertIsInstance(dev.option_bytes_contents, FlashOptionBytes)
+
+    def testOptionBytesUpdate(self):
+        dev = DeviceType(DEV_TEST_VALID_DEVICE_ID, DEV_TEST_VALID_BOOTLOADER_ID)
+        dev.updateOptionBytes(b'\xa5Z\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff')
+        self.assertEqual(dev.option_bytes_contents.nUser, 0xA5)
+        self.assertEqual(dev.option_bytes_contents.writeProt0, 0xFF)

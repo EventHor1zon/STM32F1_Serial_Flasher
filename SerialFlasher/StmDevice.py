@@ -2,7 +2,7 @@ from .SerialFlasher import SerialTool
 from .utilities import unpack16BitInt
 from .constants import *
 from .errors import *
-from .devices import DeviceDensity, DeviceType, DeviceMemoryMap
+from .devices import DeviceDensity, DeviceType
 from struct import unpack
 from time import sleep
 

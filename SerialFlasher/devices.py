@@ -35,8 +35,6 @@ FlashOptionBytes = namedtuple(
 )
 
 
-
-
 @dataclass
 class Register:
     name: str
