@@ -24,6 +24,7 @@ DEVICE_SERIAL_BAUD = 57600
 DEVICE_SERIAL_WRT_TIMEOUT_S = 1.0
 DEVICE_SERIAL_RD_TIMEOUT_S = 1.0
 DEVICE_TEST_READ_INVALID_ADDR = 0x20000000
+STM_TEST_VALID_OPTBYTE_DATA = b'\xa5Z\xff\xffZ\xa5\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff'
 
 class STMInterfaceTestCase(unittest.TestCase):
 
@@ -51,22 +52,22 @@ class STMInterfaceTestCase(unittest.TestCase):
         self.assertTrue(a)
         self.assertNotEqual(self.stm.device, None)
 
-    def testGetDeviceValidCommands(self):
-        """ test we can get the valid device commands as a list """
-        self.stm.readDeviceInfo()
-        valid_cmds = self.stm.getDeviceValidCommands()
-        self.assertListEqual(valid_cmds, DEVICE_VALID_CMDS)
-
     def testGetDeviceBootloaderVersion(self):
         """ test we can get the expected device bootloader """
         self.stm.readDeviceInfo()
         bootloader_version = self.stm.getDeviceBootloaderVersion()
         self.assertEqual(bootloader_version, DEVICE_VALID_BOOTLOADER_VERSION)
 
-    def testGetDeviceValidCmdsBeforeRead(self):
-        """ test that getting valid commands before read raises exception """
-        with self.assertRaises(InformationNotRetrieved):
-            self.stm.getDeviceValidCommands()
+    # def testGetDeviceValidCommands(self):
+    #     """ test we can get the valid device commands as a list """
+    #     self.stm.readDeviceInfo()
+    #     valid_cmds = self.stm.getDeviceValidCommands()
+    #     self.assertListEqual(valid_cmds, DEVICE_VALID_CMDS)
+
+    # def testGetDeviceValidCmdsBeforeRead(self):
+    #     """ test that getting valid commands before read raises exception """
+    #     with self.assertRaises(InformationNotRetrieved):
+    #         self.stm.getDeviceValidCommands()
 
     def testGetDeviceBootloaderVersionBeforeRead(self):
         """ test that getting bootloader version before read raises exception """
@@ -78,52 +79,38 @@ class STMInterfaceTestCase(unittest.TestCase):
         with self.assertRaises(InformationNotRetrieved):
             self.stm.getDeviceId()
 
-    ### Test writing the key sequence to flash ###
-
-    def testWriteFlashKeys(self):
-        """ test we can write the flash keys and unlock the 
-            flash control register
-        """
-        a = self.stm.writeFlashkKeys()
-        self.assertTrue(a)
-
-
     ### Test writing and reading to RAM ###
 
-    def testWriteByteToRam(self):
+    def testWriteDataToRam(self):
         """ test we can write a byte to RAM """
-        pass
+        success = self.stm.readDeviceInfo()
+        success = self.stm.writeToRam(0x20002000, bytearray([0x01, 0x02, 0x03, 0x04]))
+        self.assertTrue(success)
 
-    def testReadByteFromRam(self):
+    def testReadDataFromRam(self):
         """ test we can read a byte from RAM """
-        pass
+        success = self.stm.readDeviceInfo()
+        success = self.stm.writeToRam(0x20002000, bytearray([0x01, 0x02, 0x03, 0x04]))
+        rx = self.stm.readFromRam(0x20002000, 4)
+        self.assertTrue(success)
+        self.assertEqual(rx, bytearray([0x01, 0x02, 0x03, 0x04]))
+
 
     #### Test using the Flash and option bytes ###
 
     def testReadOptionBytesData(self):
-        self.sf.connect()
-        success, rx = self.sf.readFlashOptionBytesData()
+        success = self.stm.readDeviceInfo()
+        success = self.stm.readOptionBytes()
         self.assertTrue(success)
-        self.assertEqual(rx, DEVICE_OPTION_BYTES_LEN)
+        self.assertEqual(self.stm.device.option_bytes_contents.nUser, 0xA5)
 
 
-    def testUnlockFlashOptionBytes(self):
-        """ test we can unlock the option bytes and allow them to be written into """
-        pass
+    def testWriteOptionBytesData(self):
+        success = self.stm.readDeviceInfo()
+        success &= self.stm.readOptionBytes()
+        self.assertTrue(success)
+        write_success = self.stm.writeToOptionBytes(STM_TEST_VALID_OPTBYTE_DATA)
+        self.assertTrue(write_success)
+        self.assertEqual(self.stm.device.option_bytes_contents.data0, STM_TEST_VALID_OPTBYTE_DATA[5])
 
-    def testReadFlashSegmentLock(self):
-        """ test we can retrieve the locked status of a flash section"""
-        pass
-
-    def testUnlockFlashSegment(self):
-        """ test we can unlock a flash segment using the access keys """
-        pass
-
-    def testLockFlashSegment(self):
-        """ test we can lock a flash segment using the access keys """
-        pass
-
-    def testWriteUserDataToOptionBytes(self):
-        """ test we can write to the user data segment of the option bytes """
-        pass
 

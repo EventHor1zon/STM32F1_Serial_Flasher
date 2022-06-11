@@ -78,6 +78,9 @@ class Region:
     def size(self):
         return self.end - self.start
 
+    def is_valid(self, address: int):
+        """ return True if address is in range start -> end """
+        return (address > self.start and address < (self.end-1))
 
 class DeviceCommands(Enum):
     GET_COMMAND = 0
@@ -121,45 +124,46 @@ class DeviceType:
     # 32kB * 64 conn
     flash_mem_size: int
 
-    def __init__(self, pid: int, bootloaderVersion: int):
+    def __init__(self, pid: int, bootloaderVersion: float):
 
         # same across most devices, intialise first, overwrite if neccesary
+        self.pid = pid
         self.bootloaderVersion = bootloaderVersion
         self.bootloader_ram = Region("bootloader ram", 0x20000000, 0x200001FF)
         self.system_memory = Region("system memory", 0x1FFFF000, 0x1FFFF7FF)
 
         # select device characteristics from pid
-        if pid == 0x0412:
+        if self.pid == 0x0412:
             self.name = "stm32f10xxxLowDensity"
             self.ram = Region("ram", 0x20000200, 0x200027FF)
             self.flash_page_size = 1024
             self.flash_page_num = 32
             self.flash_info_blk_size = 258
-        elif pid == 0x0410:
+        elif self.pid == 0x0410:
             self.name = "stm32f10xxxMedDensity"
             self.ram = Region("ram", 0x20000200, 0x20004FFF)
             self.flash_page_size = 1024
             self.flash_page_num = 128
             self.flash_info_blk_size = 258
-        elif pid == 0x0414:
+        elif self.pid == 0x0414:
             self.name = "stm32f10xxxHighDensity"
             self.ram = Region("ram", 0x20000200, 0x2000FFFF)
             self.flash_page_size = 2048
             self.flash_page_num = 256
             self.flash_info_blk_size = 258
-        elif pid == 0x0420:
+        elif self.pid == 0x0420:
             self.name = "stm32f10xxxMedDensityValueLine"
             self.ram = Region("ram", 0x20000200, 0x20001FFF)
             self.flash_page_size = 1024
             self.flash_page_num = 128
             self.flash_info_blk_size = 258
-        elif pid == 0x0428:
+        elif self.pid == 0x0428:
             self.name = "stm32f10xxxHighDensityValueLine"
             self.ram = Region("ram", 0x20000200, 0x20007FFF)
             self.flash_page_size = 2048
             self.flash_page_num = 256
             self.flash_info_blk_size = 258
-        elif pid == 0x0430:
+        elif self.pid == 0x0430:
             self.name = "stm32f10xxxXlDensity"
             self.ram = Region("ram", 0x20000800, 0x20017FFF)
             self.system_memory = Region("system memory", 0x1FFFF000, 0x1FFF77FF)
@@ -186,7 +190,6 @@ class DeviceType:
 
     def updateOptionBytes(self, data: bytearray) -> None:
         self.option_bytes_contents = FlashOptionBytes._make(unpack(">16B", data))
-
 
 
 class DeviceMemoryMap:
