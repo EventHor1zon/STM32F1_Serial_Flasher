@@ -286,6 +286,12 @@ class SerialTool:
         self.serial.close()
         self.connected = False
 
+    def reconnect(self):
+        self.disconnect()
+        sleep(0.1)
+        self.serial.open()
+        return self.connect()
+
     ##=============== DEVICE COMMANDS ==========##
     
     def writeCommand(self, data: bytearray, length: int):

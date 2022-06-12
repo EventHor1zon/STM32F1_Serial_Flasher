@@ -87,8 +87,27 @@ class STMInterface:
 
         return success
 
-    def writeToOptionBytes(self, data: bytearray) -> bool:
-        pass
+    def writeToOptionBytes(self, data: bytearray, reconnect: bool = False) -> bool:
+        """! write data to the option bytes register 
+            @param data - The data to write, must be 16 bytes
+            @reconnect - reconnect to the device after reset 
+        """
+        if len(data) != 16:
+            raise InvalidWriteLengthError("Option byte data must be exactly 16 bytes")
+        if self.device is None:
+            raise InformationNotRetrieved("Must read device type first")
+
+
+        success = self._writeToMem(self.device.flash_option_bytes.start, data)
+
+        if success == True:
+            self.connected = False
+
+        if self.connected == False and reconnect == True:
+            self.connected = self.serialTool.reconnect()
+        
+        return success
+
         
     def getDeviceBootloaderVersion(self) -> float:
         """ get the bootloader version as a float """

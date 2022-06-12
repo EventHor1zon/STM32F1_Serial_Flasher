@@ -109,8 +109,9 @@ class STMInterfaceTestCase(unittest.TestCase):
         success = self.stm.readDeviceInfo()
         success &= self.stm.readOptionBytes()
         self.assertTrue(success)
-        write_success = self.stm.writeToOptionBytes(STM_TEST_VALID_OPTBYTE_DATA)
+        write_success = self.stm.writeToOptionBytes(STM_TEST_VALID_OPTBYTE_DATA, reconnect=True)
         self.assertTrue(write_success)
+        success = self.stm.readOptionBytes()
         self.assertEqual(self.stm.device.option_bytes_contents.data0, STM_TEST_VALID_OPTBYTE_DATA[5])
 
 
