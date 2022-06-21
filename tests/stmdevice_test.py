@@ -25,6 +25,8 @@ DEVICE_SERIAL_WRT_TIMEOUT_S = 1.0
 DEVICE_SERIAL_RD_TIMEOUT_S = 1.0
 DEVICE_TEST_READ_INVALID_ADDR = 0x20000000
 STM_TEST_VALID_OPTBYTE_DATA = b'\xa5Z\xff\xffZ\xa5\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff'
+SMT_TEST_BINARY_PATH = "./binaries/blackpill_blink.bin"
+
 
 class STMInterfaceTestCase(unittest.TestCase):
 
@@ -96,13 +98,27 @@ class STMInterfaceTestCase(unittest.TestCase):
         self.assertEqual(rx, bytearray([0x01, 0x02, 0x03, 0x04]))
 
 
+    def testWriteDataToFlash(self):
+        success = self.stm.readDeviceInfo()
+        self.assertTrue(success)
+        success = self.stm.writeToFlash(self.stm.device.flash_memory.start, bytearray([0x01, 0x02, 0x03, 0x04]))
+        self.assertTrue(success)
+
+    def testReadDataFromFlash(self):
+        """ test we can read a byte from RAM """
+        success = self.stm.readDeviceInfo()
+        success = self.stm.writeToFlash(self.stm.device.flash_memory.start, bytearray([0x01, 0x02, 0x03, 0x04]))
+        rx = self.stm.readFromFlash(self.stm.device.flash_memory.start, 4)
+        self.assertTrue(success)
+        self.assertEqual(rx, bytearray([0x01, 0x02, 0x03, 0x04]))
+
     #### Test using the Flash and option bytes ###
 
     def testReadOptionBytesData(self):
         success = self.stm.readDeviceInfo()
         success = self.stm.readOptionBytes()
         self.assertTrue(success)
-        self.assertEqual(self.stm.device.option_bytes_contents.nUser, 0xA5)
+        self.assertEqual(self.stm.device.opt_bytes.nUser, 0xA5)
 
 
     def testWriteOptionBytesData(self):
@@ -112,6 +128,6 @@ class STMInterfaceTestCase(unittest.TestCase):
         write_success = self.stm.writeToOptionBytes(STM_TEST_VALID_OPTBYTE_DATA, reconnect=True)
         self.assertTrue(write_success)
         success = self.stm.readOptionBytes()
-        self.assertEqual(self.stm.device.option_bytes_contents.data0, STM_TEST_VALID_OPTBYTE_DATA[5])
+        self.assertEqual(self.stm.device.opt_bytes.data0, STM_TEST_VALID_OPTBYTE_DATA[5])
 
 

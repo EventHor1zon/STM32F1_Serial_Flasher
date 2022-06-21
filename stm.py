@@ -14,11 +14,11 @@ def main():
     success = st.readOptionBytes()
 
     if success == True:
-        print(f"data = {st.device.option_bytes_contents}")
+        print(f"data = {st.device.opt_bytes}")
     else:
         print("error")
 
-    copy = st.device.option_bytes_contents
+    copy = st.device.opt_bytes
 
     print(copy)
 
@@ -39,7 +39,7 @@ def main():
     else:
         st.readOptionBytes()
 
-        new = st.device.option_bytes_contents
+        new = st.device.opt_bytes
 
         print(f"new {new}")
     

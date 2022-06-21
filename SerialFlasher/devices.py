@@ -50,6 +50,7 @@ class Peripheral:
     start: int
     end: int
 
+    @property
     def size(self) -> int:
         return self.end - self.start
 
@@ -80,7 +81,8 @@ class Region:
 
     def is_valid(self, address: int):
         """ return True if address is in range start -> end """
-        return (address > self.start and address < (self.end-1))
+        return address > self.start and address < (self.end - 1)
+
 
 class DeviceCommands(Enum):
     GET_COMMAND = 0
@@ -186,15 +188,45 @@ class DeviceType:
         self.flash_option_bytes = Region("OptionBytes", 0x1FFFF800, 0x1FFF800 + 16)
 
         ## fill this in on demand
-        self.option_bytes_contents = None
+        self.opt_bytes = None
 
     def updateOptionBytes(self, data: bytearray) -> None:
-        self.option_bytes_contents = FlashOptionBytes._make(unpack(">16B", data))
+        self.opt_bytes = FlashOptionBytes._make(unpack(">16B", data))
+
+    def getFlashPageAddress(self, page: int):
+        """! get the flash page start address
+             checks the flash page is valid
+            @param page - the flash page number
+            @return page start address or None
+        """
+        if page > self.flash_page_num:
+            return None
+        offset = page * self.flash_page_size
+        return self.flash_memory.start + offset
+
+    @property
+    def watchdogType(self):
+        if self.opt_bytes is not None:
+            return self.opt_bytes.user & 0b1
+        return None
+
+    @property
+    def resetOnStop(self):
+        if self.opt_bytes is not None:
+            return not (self.opt_bytes.user & 0b10)
+        return None
+
+    @property
+    def resetOnStandby(self):
+        if self.opt_bytes is not None:
+            return not (self.opt_bytes.user & 0b100)
+        return None
+
 
 
 class DeviceMemoryMap:
     """ describes a device's memory layout - this is just a gathering place for information currently 
-        it will be updated to be a good representation of the connected device's memory
+        it will be updated to be a good representation of the connected device's memory (if needed)
     """
 
     fsmc = (Peripheral("FSMC", 0xA0000000, 0xA0000FFF),)
@@ -279,11 +311,9 @@ class DeviceMemoryMap:
     )  ## variable length depending on device type
     flash_option_bytes = Region("OptionBytes", 0x1FFFF800, 16)
     flash_acr = Register("FLASH_ACR", 0x40022000, 4)
-    flash_kr = Register(
-        "FLASH_KEYR", 0x40022004, 4,
-    )
+    flash_kr = Register("FLASH_KEYR", 0x40022004, 4,)
     flash_optkey = Register("FLASH_OPTKEYR", 0x40022008, 4)
-    flash_status_reg = Register("FLASH_SR", 0x4002200C, 4),  ## status refister
+    flash_status_reg = (Register("FLASH_SR", 0x4002200C, 4),)  ## status refister
     flash_control_reg = Register("FLASH_CR", 0x40022010, 4)  ## control register
     flash_addr_reg = Register("FLASH_AR", 0x40022014, 4)  ## address register
     flash_optbyte_reg = Register("FLASH_OBR", 0x4002201C, 4)  ## option byte register
@@ -291,15 +321,4 @@ class DeviceMemoryMap:
 
     STMF1_SRAM_START = 0x20000000
     STMF1_FLASH_SIZE = 0x1FFFF7E0
-
-
-class DeviceDescriptor:
-
-    bootloaderVersion: str
-    validCommands: list
-    # deviceDensity: DeviceDensity
-    deviceType: int  ## TODO: enumerate?
-    flashSize: int
-    deviceUid: bytearray
-    flashLockState: bool  ## TODO: Map this somehow
 

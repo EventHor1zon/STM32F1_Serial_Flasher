@@ -7,6 +7,7 @@ from .devices import DeviceDensity, DeviceType
 from struct import unpack
 from time import sleep
 
+
 class STMInterface:
     """ The device object should:
         - describe the connected device
@@ -16,7 +17,6 @@ class STMInterface:
         - translate device areas into specific memory addresses
         - lock/unlock flash sections
     """
-    
 
     def __init__(self, serialTool: SerialTool = None):
         self.connected = False
@@ -28,14 +28,30 @@ class STMInterface:
         return float(".".join([c for c in str(hex(value[0])).strip("0x")]))
 
     def connectToDevice(self, port: str, baud: int = 9600):
+        """! Connect to the device over serial 
+            @param port - the port to connect to
+            @param baud - the baud rate to connect at
+            @return True on success
+        """
         if self.serialTool is None:
-            self.serialTool = SerialTool(
-                port=port,
-                baud=baud
-            )
+            self.serialTool = SerialTool(port=port, baud=baud)
         sleep(0.01)
         self.connected = self.serialTool.connect()
         return self.connected
+
+    def connectAndReadInfo(self, port, baud: int=9600, readOptBytes: bool=False):
+        success = self.connectToDevice(port, baud)
+
+        if success:
+            ## clear the device info if it exists
+            if self.device is not None:
+                self.device = None
+            self.readDeviceInfo()
+
+        if success and readOptBytes:
+            success = self.readOptionBytes()
+
+        return success
 
     def readDeviceInfo(self):
         """ collects the object's id and bootloader version
@@ -49,7 +65,7 @@ class STMInterface:
             raise DeviceNotConnectedError("Device connection not started")
 
         success, id = self.serialTool.cmdGetId()
-    
+
         if not success:
             raise CommandFailedError("GetId Command failed")
 
@@ -74,8 +90,7 @@ class STMInterface:
             raise DeviceNotConnectedError
 
         success, rx = self.serialTool.cmdReadFromMemoryAddress(
-            self.device.flash_option_bytes.start,
-            16,
+            self.device.flash_option_bytes.start, 16,
         )
 
         if success:
@@ -97,27 +112,37 @@ class STMInterface:
         if self.device is None:
             raise InformationNotRetrieved("Must read device type first")
 
-
         success = self._writeToMem(self.device.flash_option_bytes.start, data)
 
-        if success == True:
+        if success:
             self.connected = False
 
-        if self.connected == False and reconnect == True:
+        if not self.connected and reconnect:
             self.connected = self.serialTool.reconnect()
-        
+
         return success
 
-        
+    def readUnprotectFlashMemory(self):
+        success = self.serialTool.cmdReadoutUnprotect()
+        sleep(0.1)
+        self.connected = self.serialTool.reconnect()
+        return success
+
+    def writeUnprotectFlashMemory(self):
+        success = self.serialTool.cmdWriteUnprotect()
+        sleep(0.1)
+        self.connected = self.serialTool.reconnect()
+        return success
+
     def getDeviceBootloaderVersion(self) -> float:
         """ get the bootloader version as a float """
-        if self.device == None:
+        if not self.device:
             raise InformationNotRetrieved("Bootloader version not read yet")
         return self.device.bootloaderVersion
 
     def getDeviceId(self) -> int:
         """ get the device id as an int """
-        if self.device == None:
+        if not self.device:
             raise InformationNotRetrieved("Device ID has not been read yet")
         return self.device.pid
 
@@ -132,16 +157,20 @@ class STMInterface:
         rem = length % 256
 
         for i in range(full_reads):
-            success, rx = self.serialTool.cmdReadFromMemoryAddress(address + (i * 256), 256)
+            success, rx = self.serialTool.cmdReadFromMemoryAddress(
+                address + (i * 256), 256
+            )
             if not success:
-                raise InvalidResponseLengthError(f"Invalid status")
-            master_rx += rx
-        if rem > 0:
-            success, rx = self.serialTool.cmdReadFromMemoryAddress((address + (full_reads * 256)), rem)
-            if not success:
-                raise InvalidResponseLengthError(f"Invalid status")
-            master_rx += rx
-        return master_rx
+                break
+            else:
+                master_rx += rx
+        if rem > 0 and success:
+            success, rx = self.serialTool.cmdReadFromMemoryAddress(
+                (address + (full_reads * 256)), rem
+            )
+            if success: 
+                master_rx += rx
+        return success, master_rx
 
     def _writeToMem(self, address, data):
         # max write length is 256 so do larger writes in multiples
@@ -150,19 +179,29 @@ class STMInterface:
         rem = length % 256
 
         for i in range(full_writes):
-            success = self.serialTool.cmdWriteToMemoryAddress(address + (i * 256), data[(i * 256):(i+1 * 256)])
+            success = self.serialTool.cmdWriteToMemoryAddress(
+                address + (i * 256), data[(i * 256) : (i + 1 * 256)]
+            )
             if not success:
-                raise InvalidResponseLengthError(f"Invalid status")
+                raise InvalidResponseLengthError("Invalid status")
         if rem > 0:
-            success = self.serialTool.cmdWriteToMemoryAddress((address + (full_writes * 256)), data[(full_writes * 256): rem])
+            success = self.serialTool.cmdWriteToMemoryAddress(
+                (address + (full_writes * 256)), data[(full_writes * 256) : rem]
+            )
             if not success:
                 raise InvalidResponseLengthError(f"Invalid status")
         return success
 
     def readFromRam(self, address: int, length: int):
         """ read length bytes from address in ram """
+        if self.connected is False:
+            raise DeviceNotConnectedError
+        if self.device is None:
+            raise InformationNotRetrieved
         if not self.device.ram.is_valid(address):
-            raise InvalidAddressError(f"Address {hex(address)} is out of range ({hex(self.device.ram.start)} - {hex(self.device.ram.end-1)}")
+            raise InvalidAddressError(
+                f"Address {hex(address)} is out of range ({hex(self.device.ram.start)} - {hex(self.device.ram.end-1)}"
+            )
         if not self.device.ram.is_valid(address + length):
             raise InvalidReadLengthError(f"Read would go out of bounds")
         if length % 4 > 0:
@@ -170,25 +209,76 @@ class STMInterface:
             raise InvalidReadLengthError("Read length should be multiple of 4 bytes")
         return self._readFromMem(address, length)
 
-
     def writeToRam(self, address: int, data: bytearray) -> bool:
         """ write to an address in ram """
+        if self.connected is False:
+            raise DeviceNotConnectedError
+        if self.device is None:
+            raise InformationNotRetrieved
         if not self.device.ram.is_valid(address):
-            raise InvalidAddressError(f"Address {hex(address)} is out of range ({hex(self.device.ram.start)} - {hex(self.device.ram.end-1)}")
+            raise InvalidAddressError(
+                f"Address {hex(address)} is out of range ({hex(self.device.ram.start)} - {hex(self.device.ram.end-1)}"
+            )
         if not self.device.ram.is_valid(address + len(data)):
-            raise InvalidWriteLengthError(f"Read would go out of bounds")
+            raise InvalidWriteLengthError(
+                f"Write would go out of bounds ({hex(self.device.ram.start)} - {hex(self.device.ram.end-1)}"
+            )
         if len(data) % 4 > 0:
             # only allow 4-byte reads
             raise InvalidWriteLengthError("Write length should be multiple of 4 bytes")
         return self._writeToMem(address, data)
 
-    def writeToFlash(self, address: int, data: bytearray) -> bool:
-        pass
+    def readFromFlash(self, address: int, length: int) -> bool, rx:
+        if self.connected is False:
+            raise DeviceNotConnectedError
+        if self.device is None:
+            raise InformationNotRetrieved
+        if not self.device.flash_memory.is_valid(address):
+            raise InvalidAddressError(
+                f"Address {hex(address)} is out of range ({hex(self.device.ram.start)} - {hex(self.device.ram.end-1)}"
+            )
+        if not self.device.flash_memory.is_valid(address + length):
+            raise InvalidWriteLengthError(
+                f"Read would go out of bounds ({hex(self.device.ram.start)} - {hex(self.device.ram.end-1)}"
+            )
+        if length % 4 > 0:
+            raise InvalidReadLengthError("Read length should be multiple of 4 bytes")
 
-    def eraseFlash(self):
-        pass
+        return self._readFromMem(address, length)
+
+    def writeToFlash(self, address: int, data: bytearray) -> bool:
+        if self.connected is False:
+            raise DeviceNotConnectedError
+        if self.device is None:
+            raise InformationNotRetrieved
+        if not self.device.flash_memory.is_valid(address):
+            raise InvalidAddressError(
+                f"Address {hex(address)} is out of range ({hex(self.device.ram.start)} - {hex(self.device.ram.end-1)}"
+            )
+        if not self.device.flash_memory.is_valid(address + len(data)):
+            raise InvalidWriteLengthError(
+                f"Write would go out of bounds ({hex(self.device.ram.start)} - {hex(self.device.ram.end-1)}"
+            )
+        if len(data) % 4 > 0:
+            raise InvalidWriteLengthError("Write length should be multiple of 4 bytes")
+
+        return self._writeToMem(address, data)
+
+    def globalEraseFlash(self):
+        return self.serialTool.cmdEraseFlashMemory()
 
     def writeApplicationFileToFlash(self, path: str) -> bool:
-        pass
+        """! write a binary application to flash memory
+            rely on the file io exception if invalid file
+            @param path - the path to the file application
+            @return success True|False
+        """
+        success = False
 
+        if self.device is None:
+            raise InformationNotRetrieved
+        with open(path, "rb") as fp:
+            content = fp.read()
+            success = self.writeToFlash(self.device.flash_memory.start, bytearray(content))
 
+        return success

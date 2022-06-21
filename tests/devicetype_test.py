@@ -47,5 +47,5 @@ class DeviceTypeTestCase(unittest.TestCase):
     def testOptionBytesUpdate(self):
         dev = DeviceType(DEV_TEST_VALID_DEVICE_ID, DEV_TEST_VALID_BOOTLOADER_ID)
         dev.updateOptionBytes(b'\xa5Z\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff')
-        self.assertEqual(dev.option_bytes_contents.nUser, 0xA5)
-        self.assertEqual(dev.option_bytes_contents.writeProt0, 0xFF)
+        self.assertEqual(dev.opt_bytes.nUser, 0xA5)
+        self.assertEqual(dev.opt_bytes.writeProt0, 0xFF)
