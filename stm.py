@@ -1,3 +1,4 @@
+from SerialFlasher.devices import OptionBytes
 from SerialFlasher.StmDevice import STMInterface
 from time import sleep
 
@@ -13,35 +14,61 @@ def main():
 
     success = st.readOptionBytes()
 
-    if success == True:
-        print(f"data = {st.device.opt_bytes}")
+    if success:
+        op = st.device.opt_bytes
+        print(f"data = {op.rawBytes}")
+        print(f"{'Hardware' if op.watchdogType == 0 else 'Software'} Watchdog")
+        
+        print(f"ReadProtect: {hex(op.readProtect)}")
+        print(f"WriteProtect: {hex(op.write_protect_0)} {hex(op.write_protect_1)}")
+        print(f"WriteProtect: {hex(op.write_protect_2)} {hex(op.write_protect_3)}")
+        print(f"Data 0: {hex(op.data_byte_0)} Data 1: {hex(op.dataByte1)}")
     else:
         print("error")
 
-    copy = st.device.opt_bytes
 
-    print(copy)
+    if success:
+        op.dataByte0 = 0xAA
+        raw = op.toBytes()
+        print(f"Writing {raw} to option bytes")
+        success = st.writeToOptionBytes(raw, reconnect=True)
 
-    success = st.writeToOptionBytes(data)
+        if not success:
+            print("Write failed")
+        else:
+            print("Write succeeded")
 
-    if not success:
-        print("Option byte write error")
+    success = st.readDeviceInfo()
+
+    print(f"s1: {success}")
+
+    success = st.readOptionBytes()
+
+    if success:
+        op = st.device.opt_bytes
+        print(f"data = {op.rawBytes}")
+        print(f"{'Hardware' if op.watchdogType == 0 else 'Software'} Watchdog")
+        
+        print(f"ReadProtect: {hex(op.readProtect)}")
+        print(f"WriteProtect: {hex(op.write_protect_0)} {hex(op.write_protect_1)}")
+        print(f"WriteProtect: {hex(op.write_protect_2)} {hex(op.write_protect_3)}")
+        print(f"Data 0: {hex(op.data_byte_0)} Data 1: {hex(op.dataByte1)}")
     else:
-        print("Opt byte write success")
+        print("error")
 
 
-    sleep(1)
+    # sleep(1)
 
-    success = st.serialTool.reconnect()
+    # success = st.serialTool.reconnect()
 
-    if not success:
-        print("didn't reconnect")
-    else:
-        st.readOptionBytes()
+    # if not success:
+    #     print("didn't reconnect")
+    # else:
+    #     st.readOptionBytes()
 
-        new = st.device.opt_bytes
+    #     new = st.device.opt_bytes
 
-        print(f"new {new}")
+    #     print(f"new {new}")
     
 
 if __name__ == "__main__":

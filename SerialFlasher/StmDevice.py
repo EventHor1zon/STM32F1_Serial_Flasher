@@ -24,6 +24,10 @@ class STMInterface:
         self.connected = False if serialTool is None else serialTool.getConnectedState()
         self.device = None
 
+
+    def buildOptionBytesFromDict(self, data: dict) -> bytearray:
+        pass
+
     def unpackBootloaderVersion(self, value: bytes) -> float:
         return float(".".join([c for c in str(hex(value[0])).strip("0x")]))
 
@@ -128,8 +132,21 @@ class STMInterface:
         self.connected = self.serialTool.reconnect()
         return success
 
+    def readProtectFlashMemory(self):
+        success = self.serialTool.cmdReadoutProtect()
+        sleep(0.1)
+        self.connected = self.serialTool.reconnect()
+        return success
+
     def writeUnprotectFlashMemory(self):
         success = self.serialTool.cmdWriteUnprotect()
+        sleep(0.1)
+        self.connected = self.serialTool.reconnect()
+        return success
+
+
+    def writeProtectFlashMemory(self):
+        success = self.serialTool.cmdWriteProtect()
         sleep(0.1)
         self.connected = self.serialTool.reconnect()
         return success
@@ -151,6 +168,7 @@ class STMInterface:
             methods readFromRam/Flash
         """
         master_rx = bytearray()
+        success = False
 
         # max read length is 256 so do larger reads in multiples
         full_reads = int(length / 256)
@@ -172,7 +190,7 @@ class STMInterface:
                 master_rx += rx
         return success, master_rx
 
-    def _writeToMem(self, address, data):
+    def _writeToMem(self, address: int, data: bytearray):
         # max write length is 256 so do larger writes in multiples
         length = len(data)
         full_writes = int(length / 256)
@@ -228,7 +246,7 @@ class STMInterface:
             raise InvalidWriteLengthError("Write length should be multiple of 4 bytes")
         return self._writeToMem(address, data)
 
-    def readFromFlash(self, address: int, length: int) -> bool, rx:
+    def readFromFlash(self, address: int, length: int):
         if self.connected is False:
             raise DeviceNotConnectedError
         if self.device is None:
@@ -247,13 +265,14 @@ class STMInterface:
         return self._readFromMem(address, length)
 
     def writeToFlash(self, address: int, data: bytearray) -> bool:
+        """! write the data to an address in flash memory """
         if self.connected is False:
             raise DeviceNotConnectedError
         if self.device is None:
             raise InformationNotRetrieved
         if not self.device.flash_memory.is_valid(address):
             raise InvalidAddressError(
-                f"Address {hex(address)} is out of range ({hex(self.device.ram.start)} - {hex(self.device.ram.end-1)}"
+                f"Address {hex(address)} is out of range ({hex(self.device.flash_memory.start)} - {hex(self.device.flash_memory.end-1)}"
             )
         if not self.device.flash_memory.is_valid(address + len(data)):
             raise InvalidWriteLengthError(
@@ -265,6 +284,9 @@ class STMInterface:
         return self._writeToMem(address, data)
 
     def globalEraseFlash(self):
+        """! Erase all of the flash pages 
+            @return True on success else false
+        """
         return self.serialTool.cmdEraseFlashMemory()
 
     def writeApplicationFileToFlash(self, path: str) -> bool:
@@ -282,3 +304,4 @@ class STMInterface:
             success = self.writeToFlash(self.device.flash_memory.start, bytearray(content))
 
         return success
+

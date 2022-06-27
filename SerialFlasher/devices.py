@@ -1,9 +1,10 @@
 from dataclasses import dataclass
-from struct import unpack
+from struct import unpack, pack
 from enum import Enum
 from dataclasses import dataclass
 from collections import namedtuple
 from .errors import DeviceNotSupportedError
+from .utilities import (getByteComplement, setBit, clearBit)
 
 STM32_F1_FLASH_KEYS = {
     "RDPRT_KEY": 0x00A5,
@@ -81,7 +82,7 @@ class Region:
 
     def is_valid(self, address: int):
         """ return True if address is in range start -> end """
-        return address > self.start and address < (self.end - 1)
+        return address >= self.start and address < self.end
 
 
 class DeviceCommands(Enum):
@@ -96,6 +97,231 @@ class DeviceDensity(Enum):
     DEVICE_TYPE_MEDIUM_DENSITY = 2
     DEVICE_TYPE_HIGH_DENSITY = 3
     DEVICE_TYPE_XL_DENSITY = 4
+
+
+class OptionBytes:
+    """ enough fucking about with tuples
+        make a proper class with functionality 
+        and stuff. This might have got out of control. 
+        But it's almost worth it
+        if only for the practice
+    """
+
+    user: int = 0x00
+    read_protect: int = 0x00
+    watchdog_type: int = 0
+    reset_on_stop: int = 0
+    reset_on_standby: int = 1
+    data_byte_0: int = 0x00
+    data_byte_1: int = 0x00
+    raw_bytes: bytearray = bytearray([])
+    write_protect_0: int = 0x00
+    write_protect_1: int = 0x00
+    write_protect_2: int = 0x00
+    write_protect_3: int = 0x00
+
+
+    def __init__(self):
+        pass
+
+    @classmethod
+    def FromAttributes(
+        cls,
+        read_protect: int = 0x00,
+        watchdog_type: int = 0,
+        reset_on_stop: int = 1,
+        reset_on_standby: int = 0,
+        data_byte_0: int = 0x00,
+        data_byte_1: int = 0x00,
+        write_protect_0: int = 0x00,
+        write_protect_1: int = 0x00,
+        write_protect_2: int = 0x00,
+        write_protect_3: int = 0x00,
+    ):
+        self = OptionBytes()
+        self.read_protect = read_protect
+        self.watchdog_type = watchdog_type
+        self.reset_on_stop = reset_on_stop
+        self.reset_on_standby = reset_on_standby
+        self.user = self.generateUserByte()
+        self.data_byte_0 = data_byte_0
+        self.data_byte_1 = data_byte_1
+        self.write_protect_0 = write_protect_0
+        self.write_protect_1 = write_protect_1
+        self.write_protect_2 = write_protect_2
+        self.write_protect_3 = write_protect_3
+        self.raw_bytes = self.toBytes()
+        return self
+
+    @classmethod
+    def FromBytes(cls, data: bytearray):
+        """! Create an OptionBytes object from a bytearray of data
+            @param data the bytearray - must be 16 bytes long. Will raise
+                        unpack error if data is badly formatted
+        """
+        self = OptionBytes()
+        fob = FlashOptionBytes._make(unpack(">16B", data))
+        self.read_protect = fob.readProt
+        self.watchdog_type = (fob.user & 0b1)
+        self.reset_on_stop = 0 if ((fob.user >> 1) & 0b1) else 1
+        self.reset_on_standby = 0 if ((fob.user >> 2) & 0b1) else 1
+        self.user = fob.user
+        self.data_byte_0 = fob.data0
+        self.data_byte_1 = fob.data1
+        self.write_protect_0 = fob.writeProt0
+        self.write_protect_1 = fob.writeProt1
+        self.write_protect_2 = fob.writeProt2
+        self.write_protect_3 = fob.writeProt3
+        self.raw_bytes = data
+        return self
+
+    def generateUserByte(self):
+        userbyte = 0x00
+        userbyte = setBit(userbyte, 0) if self.watchdog_type > 0 else clearBit(userbyte, 0)
+        userbyte = setBit(userbyte, 1) if not self.reset_on_stop > 0 else clearBit(userbyte, 1)
+        userbyte = setBit(userbyte, 2) if not self.reset_on_standby > 0 else clearBit(userbyte, 2)
+        return userbyte
+
+
+    def toBytes(self):
+        fob = FlashOptionBytes(
+            getByteComplement(self.user),
+            self.user,
+            getByteComplement(self.read_protect),
+            self.read_protect,
+            getByteComplement(self.data_byte_1),
+            self.data_byte_1,
+            getByteComplement(self.data_byte_0),
+            self.data_byte_0,
+            getByteComplement(self.write_protect_1),
+            self.write_protect_1,
+            getByteComplement(self.write_protect_0),
+            self.write_protect_0,
+            getByteComplement(self.write_protect_3),
+            self.write_protect_3,
+            getByteComplement(self.write_protect_2),
+            self.write_protect_2,
+        )
+
+        raw = pack(">16B", *[ob for ob in fob])
+        return raw
+
+    def updateRawBytes(self):
+        self.raw_bytes = self.toBytes()
+
+    @property
+    def rawBytes(self) -> bytearray:
+        return self.raw_bytes
+
+    @property
+    def watchdogType(self):
+        """! get watchdog type from option bytes
+         """
+        return self.watchdog_type
+
+    @watchdogType.setter
+    def watchdogType(self, wdType: bool):
+        """! setter for the watchdog type
+            update the user byte too 
+            @param type - False - Hardware Watchdog
+                          True - Software watchdog
+        """
+        self.watchdog_type = int(wdType)
+        self.user = self.generateUserByte()
+        self.updateRawBytes()
+
+    @property
+    def resetOnStop(self):
+        """! get reset on stop setting
+         """
+        return self.reset_on_stop
+
+    @resetOnStop.setter
+    def resetOnStop(self, ros: bool):
+        self.reset_on_stop = int(ros)
+        self.user = self.generateUserByte()
+        self.updateRawBytes()
+
+    @property
+    def resetOnStandby(self):
+        """! get reset on standby setting """
+        return self.reset_on_standby
+
+    @resetOnStandby.setter
+    def resetOnStandby(self, ros: bool):
+        self.reset_on_standby = int(ros)
+        self.user = self.generateUserByte()
+        self.updateRawBytes()
+
+    @property
+    def dataByte0(self):
+        return self.data_byte_0
+
+    @dataByte0.setter
+    def dataByte0(self, data: int):
+        """! set the data 0 byte - only the first byte is valid
+            @param data value to load (0x00 - 0xFF)
+        """
+        self.data_byte_0 = data & 0xFF
+        self.updateRawBytes()
+
+    @property
+    def dataByte1(self):
+        return self.data_byte_1
+
+    @dataByte1.setter
+    def dataByte1(self, data: int):
+        """! set the data 0 byte - only the first byte is valid
+            @param data value to load (0x00 - 0xFF)
+        """
+        self.data_byte_1 = data & 0xFF
+        self.updateRawBytes()
+    
+    @property
+    def readProtect(self):
+        return self.read_protect
+    
+    @readProtect.setter
+    def readProtect(self, data: int):
+        self.read_protect = data & 0xFF
+        self.updateRawBytes()
+
+    @property
+    def writeProtect0(self):
+        return self.write_protect_0
+    
+    @writeProtect0.setter
+    def writeProtect0(self, data: int):
+        self.write_protect_0 = data & 0xFF
+        self.updateRawBytes()
+
+    @property
+    def writeProtect1(self):
+        return self.write_protect_1
+    
+    @writeProtect1.setter
+    def writeProtect1(self, data: int):
+        self.write_protect_1 = data & 0xFF
+        self.updateRawBytes()
+
+    @property
+    def writeProtect2(self):
+        return self.write_protect_2
+    
+    @writeProtect2.setter
+    def writeProtect2(self, data: int):
+        self.write_protect_2 = data & 0xFF
+        self.updateRawBytes()
+
+    @property
+    def writeProtect3(self):
+        return self.write_protect_3
+    
+    @writeProtect3.setter
+    def writeProtect3(self, data: int):
+        self.write_protect_3 = data & 0xFF
+        self.updateRawBytes()
+
 
 
 class DeviceType:
@@ -188,10 +414,10 @@ class DeviceType:
         self.flash_option_bytes = Region("OptionBytes", 0x1FFFF800, 0x1FFF800 + 16)
 
         ## fill this in on demand
-        self.opt_bytes = None
+        self.opt_bytes = OptionBytes.FromAttributes()
 
     def updateOptionBytes(self, data: bytearray) -> None:
-        self.opt_bytes = FlashOptionBytes._make(unpack(">16B", data))
+        self.opt_bytes = OptionBytes.FromBytes(data)
 
     def getFlashPageAddress(self, page: int):
         """! get the flash page start address
@@ -203,25 +429,6 @@ class DeviceType:
             return None
         offset = page * self.flash_page_size
         return self.flash_memory.start + offset
-
-    @property
-    def watchdogType(self):
-        if self.opt_bytes is not None:
-            return self.opt_bytes.user & 0b1
-        return None
-
-    @property
-    def resetOnStop(self):
-        if self.opt_bytes is not None:
-            return not (self.opt_bytes.user & 0b10)
-        return None
-
-    @property
-    def resetOnStandby(self):
-        if self.opt_bytes is not None:
-            return not (self.opt_bytes.user & 0b100)
-        return None
-
 
 
 class DeviceMemoryMap:

@@ -1,7 +1,9 @@
+import imp
 import unittest
 from SerialFlasher.StmDevice import STMInterface
 from SerialFlasher.constants import *
 from SerialFlasher.errors import DeviceNotConnectedError, InformationNotRetrieved, InvalidAddressError
+from SerialFlasher.utilities import getByteComplement
 from time import sleep
 import serial
 
@@ -104,9 +106,14 @@ class STMInterfaceTestCase(unittest.TestCase):
         success = self.stm.writeToFlash(self.stm.device.flash_memory.start, bytearray([0x01, 0x02, 0x03, 0x04]))
         self.assertTrue(success)
 
+    def testReadUnprotect(self):
+        success = self.stm.readUnprotectFlashMemory()
+        self.assertEqual(success, True)
+
     def testReadDataFromFlash(self):
         """ test we can read a byte from RAM """
         success = self.stm.readDeviceInfo()
+        success = self.stm.readUnprotectFlashMemory()
         success = self.stm.writeToFlash(self.stm.device.flash_memory.start, bytearray([0x01, 0x02, 0x03, 0x04]))
         rx = self.stm.readFromFlash(self.stm.device.flash_memory.start, 4)
         self.assertTrue(success)
@@ -118,16 +125,17 @@ class STMInterfaceTestCase(unittest.TestCase):
         success = self.stm.readDeviceInfo()
         success = self.stm.readOptionBytes()
         self.assertTrue(success)
-        self.assertEqual(self.stm.device.opt_bytes.nUser, 0xA5)
+        self.assertEqual(self.stm.device.opt_bytes.user, getByteComplement(0xA5))
 
 
     def testWriteOptionBytesData(self):
         success = self.stm.readDeviceInfo()
         success &= self.stm.readOptionBytes()
+        success = self.stm.readUnprotectFlashMemory()
         self.assertTrue(success)
         write_success = self.stm.writeToOptionBytes(STM_TEST_VALID_OPTBYTE_DATA, reconnect=True)
         self.assertTrue(write_success)
         success = self.stm.readOptionBytes()
-        self.assertEqual(self.stm.device.opt_bytes.data0, STM_TEST_VALID_OPTBYTE_DATA[5])
+        self.assertEqual(self.stm.device.opt_bytes.data_byte_0, STM_TEST_VALID_OPTBYTE_DATA[5])
 
 

@@ -27,6 +27,7 @@ from .errors import (
     UnexpectedResponseError,
     InvalidEraseLengthError,
 )
+from .utilities import getByteComplement
 
 ## SerialFlasher Class
 #   This class represents the object used to interface
@@ -124,10 +125,6 @@ class SerialTool:
     @staticmethod
     def checkBaudValid(baud):
         pass
-
-    @staticmethod
-    def getByteComplement(byte):
-        return byte ^ 0xFF
 
     @staticmethod
     def appendChecksum(data: bytearray):
@@ -330,7 +327,7 @@ class SerialTool:
 
             @return tuple (Success, raw data bytes)
         """
-        id_command = bytearray([STM_CMD_GET_ID, self.getByteComplement(STM_CMD_GET_ID)])
+        id_command = bytearray([STM_CMD_GET_ID, getByteComplement(STM_CMD_GET_ID)])
         return self.writeCommand(id_command, STM_GET_ID_RSP_LEN)
 
     def cmdGetInfo(self):
@@ -338,7 +335,7 @@ class SerialTool:
 
             @return tuple (Success, raw data bytes)
         """
-        get_commands = bytearray([STM_CMD_GET, self.getByteComplement(STM_CMD_GET),])
+        get_commands = bytearray([STM_CMD_GET, getByteComplement(STM_CMD_GET),])
         return self.writeCommand(get_commands, STM_RSP_GET_LEN)
 
     def cmdGetVersionProt(self):
@@ -354,7 +351,7 @@ class SerialTool:
         commands = bytearray(
             [
                 STM_CMD_VERSION_READ_PROTECT,
-                self.getByteComplement(STM_CMD_VERSION_READ_PROTECT),
+                getByteComplement(STM_CMD_VERSION_READ_PROTECT),
             ]
         )
         success = self.writeAndWaitAck(commands)
@@ -382,7 +379,7 @@ class SerialTool:
 
         # read command bytes
         commands = bytearray(
-            [STM_CMD_READ_MEM, self.getByteComplement(STM_CMD_READ_MEM),]
+            [STM_CMD_READ_MEM, getByteComplement(STM_CMD_READ_MEM),]
         )
 
         # initialise rx as empty bytearray
@@ -392,7 +389,7 @@ class SerialTool:
         address_bytes = self.addressToBytes(address)
         address_bytes = self.appendChecksum(address_bytes)
         # length bytes
-        length_bytes = bytearray([length-1, self.getByteComplement(length-1),])
+        length_bytes = bytearray([length-1, getByteComplement(length-1),])
 
         # write the command, address & length to the device
         success = self.writeAndWaitAck(commands)
@@ -423,7 +420,7 @@ class SerialTool:
             raise InvalidWriteLengthError("Must be a multiple of 4 bytes")
 
         commands = bytearray(
-            [STM_CMD_WRITE_MEM, self.getByteComplement(STM_CMD_WRITE_MEM),]
+            [STM_CMD_WRITE_MEM, getByteComplement(STM_CMD_WRITE_MEM),]
         )
         
         # address bytes
@@ -462,7 +459,7 @@ class SerialTool:
 
         commands = bytearray([
             STM_CMD_ERASE_MEM,
-            self.getByteComplement(STM_CMD_ERASE_MEM),
+            getByteComplement(STM_CMD_ERASE_MEM),
         ])
 
         tx_data = bytearray([
@@ -485,7 +482,7 @@ class SerialTool:
 
         commands = bytearray([
             STM_CMD_ERASE_MEM,
-            self.getByteComplement(STM_CMD_ERASE_MEM),
+            getByteComplement(STM_CMD_ERASE_MEM),
         ])
 
         tx_data = bytearray([
@@ -511,7 +508,7 @@ class SerialTool:
 
         commands = bytearray([
             STM_CMD_WRITE_PROTECT_EN,
-            self.getByteComplement(STM_CMD_WRITE_PROTECT_EN),
+            getByteComplement(STM_CMD_WRITE_PROTECT_EN),
         ])
 
         tx_data = bytearray([
@@ -538,7 +535,7 @@ class SerialTool:
          """
         commands = bytearray([
             STM_CMD_WRITE_PROTECT_DIS,
-            self.getByteComplement(STM_CMD_WRITE_PROTECT_DIS),
+            getByteComplement(STM_CMD_WRITE_PROTECT_DIS),
         ])
 
         first_ack = self.writeAndWaitAck(commands)
@@ -554,7 +551,7 @@ class SerialTool:
          """
         commands = bytearray([
             STM_CMD_READOUT_PROTECT_EN,
-            self.getByteComplement(STM_CMD_READOUT_PROTECT_EN),
+            getByteComplement(STM_CMD_READOUT_PROTECT_EN),
         ])
 
         first_ack = self.writeAndWaitAck(commands)
@@ -570,7 +567,7 @@ class SerialTool:
          """
         commands = bytearray([
             STM_CMD_READOUT_PROTECT_DIS,
-            self.getByteComplement(STM_CMD_READOUT_PROTECT_DIS),
+            getByteComplement(STM_CMD_READOUT_PROTECT_DIS),
         ])
 
         success = self.writeDevice(commands)
@@ -593,7 +590,7 @@ class SerialTool:
          """
         commands = bytearray([
             STM_CMD_GO,
-            self.getByteComplement(STM_CMD_GO),
+            getByteComplement(STM_CMD_GO),
         ])
 
         address_bytes = self.addressToBytes(address)
