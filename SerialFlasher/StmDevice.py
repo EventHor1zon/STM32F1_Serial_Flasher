@@ -1,11 +1,10 @@
-from ctypes import Union
-from .SerialFlasher import SerialTool
+from struct import unpack
+from time import sleep
 from .utilities import unpack16BitInt
 from .constants import *
 from .errors import *
 from .devices import DeviceDensity, DeviceType
-from struct import unpack
-from time import sleep
+from .SerialFlasher import SerialTool
 
 
 class STMInterface:
@@ -26,6 +25,7 @@ class STMInterface:
 
 
     def buildOptionBytesFromDict(self, data: dict) -> bytearray:
+        """ not sure if I need this """
         pass
 
     def unpackBootloaderVersion(self, value: bytes) -> float:

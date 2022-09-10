@@ -12,7 +12,8 @@ STM32_F1_FLASH_KEYS = {
     "KEY_2": 0xCDEF89AB,
 }
 
-
+#! FlashOptionBytes: named tuple used for unpacking 
+#  optionbytes register contents
 FlashOptionBytes = namedtuple(
     "FlashOptionBytes",
     [

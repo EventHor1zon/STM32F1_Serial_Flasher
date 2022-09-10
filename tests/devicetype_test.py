@@ -1,5 +1,6 @@
+from optparse import Option
 import unittest
-from SerialFlasher.devices import DeviceType, Region, FlashOptionBytes
+from SerialFlasher.devices import DeviceType, OptionBytes, Region, FlashOptionBytes
 from SerialFlasher.errors import *
 from collections import namedtuple
 
@@ -8,7 +9,7 @@ DEV_TEST_VALID_DEVICE_ID = 0x0410
 DEV_TEST_INVALID_DEVICE_ID = 0xF410
 DEV_TEST_VALID_BOOTLOADER_ID = 2.2
 DEV_TEST_VALID_DEVICE_PAGE_SIZE = 1024
-
+DEVICETYPE_TEST_EXAMPLE_OPTBYTES = b'\xa5Z\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff'
 
 class DeviceTypeTestCase(unittest.TestCase):
 
@@ -46,6 +47,6 @@ class DeviceTypeTestCase(unittest.TestCase):
 
     def testOptionBytesUpdate(self):
         dev = DeviceType(DEV_TEST_VALID_DEVICE_ID, DEV_TEST_VALID_BOOTLOADER_ID)
-        dev.updateOptionBytes(b'\xa5Z\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff')
+        dev.updateOptionBytes(DEVICETYPE_TEST_EXAMPLE_OPTBYTES)
         self.assertEqual(dev.opt_bytes.nUser, 0xA5)
         self.assertEqual(dev.opt_bytes.writeProt0, 0xFF)

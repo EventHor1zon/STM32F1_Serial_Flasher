@@ -10,6 +10,9 @@ black = "*"
 [packages]
 pyserial = "*"
 crc = "*"
+asciimatics = "*"
+rich = "*"
+textual = "*"
 
 [requires]
 python_version = "3.7"
