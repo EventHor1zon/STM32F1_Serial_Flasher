@@ -4,6 +4,8 @@ from SerialFlasher.StmDevice import STMInterface
 from SerialFlasher.constants import *
 from SerialFlasher.errors import DeviceNotConnectedError, InformationNotRetrieved, InvalidAddressError
 from SerialFlasher.utilities import getByteComplement
+from SerialFlasher.devices import OptionBytes
+from struct import unpack
 from time import sleep
 import serial
 
@@ -26,8 +28,20 @@ DEVICE_SERIAL_BAUD = 57600
 DEVICE_SERIAL_WRT_TIMEOUT_S = 1.0
 DEVICE_SERIAL_RD_TIMEOUT_S = 1.0
 DEVICE_TEST_READ_INVALID_ADDR = 0x20000000
-STM_TEST_VALID_OPTBYTE_DATA = b'\xa5Z\xff\xffZ\xa5\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff'
+STM_TEST_VALID_OPTBYTE_DATA = b'\xfc\x03Z\xa5w\x88\xbbD\x00\xff\x00\xff\x00\xff\x00\xff'
 SMT_TEST_BINARY_PATH = "./binaries/blackpill_blink.bin"
+
+
+def dump_option_bytes(data: bytes):
+
+    fmt = ">16B"
+
+    nUsr, Usr, nRdp, Rdp, nD1, D1, nD0, D0, nWrp1, Wrp1, nWrp0, Wrp0, nWrp3, Wrp3, nWrp2, Wrp2 = unpack(fmt, data)
+
+    print(f"{bin(Usr)}|{bin(nUsr)} - {Rdp}|{nRdp}")
+    print(f"{D1}|{nD1} - {D0}|{nD0}")
+    print(f"{Wrp1}|{nWrp1} - {Wrp0}|{nWrp0}")
+    print(f"{Wrp3}|{nWrp3} - {Wrp2}|{nWrp2}")
 
 
 class STMInterfaceTestCase(unittest.TestCase):
@@ -95,7 +109,8 @@ class STMInterfaceTestCase(unittest.TestCase):
         """ test we can read a byte from RAM """
         success = self.stm.readDeviceInfo()
         success = self.stm.writeToRam(0x20002000, bytearray([0x01, 0x02, 0x03, 0x04]))
-        rx = self.stm.readFromRam(0x20002000, 4)
+        self.assertTrue(success)
+        success, rx = self.stm.readFromRam(0x20002000, 4)
         self.assertTrue(success)
         self.assertEqual(rx, bytearray([0x01, 0x02, 0x03, 0x04]))
 
@@ -106,16 +121,13 @@ class STMInterfaceTestCase(unittest.TestCase):
         success = self.stm.writeToFlash(self.stm.device.flash_memory.start, bytearray([0x01, 0x02, 0x03, 0x04]))
         self.assertTrue(success)
 
-    def testReadUnprotect(self):
-        success = self.stm.readUnprotectFlashMemory()
-        self.assertEqual(success, True)
 
     def testReadDataFromFlash(self):
         """ test we can read a byte from RAM """
         success = self.stm.readDeviceInfo()
-        success = self.stm.readUnprotectFlashMemory()
         success = self.stm.writeToFlash(self.stm.device.flash_memory.start, bytearray([0x01, 0x02, 0x03, 0x04]))
-        rx = self.stm.readFromFlash(self.stm.device.flash_memory.start, 4)
+        self.assertTrue(success)
+        success, rx = self.stm.readFromFlash(self.stm.device.flash_memory.start, 4)
         self.assertTrue(success)
         self.assertEqual(rx, bytearray([0x01, 0x02, 0x03, 0x04]))
 
@@ -130,12 +142,30 @@ class STMInterfaceTestCase(unittest.TestCase):
 
     def testWriteOptionBytesData(self):
         success = self.stm.readDeviceInfo()
-        success &= self.stm.readOptionBytes()
-        success = self.stm.readUnprotectFlashMemory()
+        success = self.stm.readOptionBytes()
         self.assertTrue(success)
+
+        print("Pre write")
+
+        op = OptionBytes.FromBytes(STM_TEST_VALID_OPTBYTE_DATA)
+        op.dumpOptionBytes()
+
+
         write_success = self.stm.writeToOptionBytes(STM_TEST_VALID_OPTBYTE_DATA, reconnect=True)
         self.assertTrue(write_success)
+
+
+
+        success = self.stm.readDeviceInfo()
         success = self.stm.readOptionBytes()
+        self.assertEqual(success, True)
+
+        print("Post write")
+        self.stm.device.opt_bytes.dumpOptionBytes()
+
         self.assertEqual(self.stm.device.opt_bytes.data_byte_0, STM_TEST_VALID_OPTBYTE_DATA[5])
 
+    def testReadUnprotect(self):
+        success = self.stm.readUnprotectFlashMemory()
+        self.assertEqual(success, True)
 

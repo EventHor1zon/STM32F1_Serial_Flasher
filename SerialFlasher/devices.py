@@ -17,22 +17,22 @@ STM32_F1_FLASH_KEYS = {
 FlashOptionBytes = namedtuple(
     "FlashOptionBytes",
     [
-        "nUser",
-        "user",
-        "nReadProt",
         "readProt",
-        "nData1",
-        "data1",
-        "nData0",
+        "nReadProt",
+        "user",
+        "nUser",
         "data0",
-        "nWriteProt1",
-        "writeProt1",
-        "nWriteProt0",
+        "nData0",
+        "data1",
+        "nData1",
         "writeProt0",
-        "nWriteProt3",
-        "writeProt3",
-        "nWriteProt2",
+        "nWriteProt0",
+        "writeProt1",
+        "nWriteProt1",
         "writeProt2",
+        "nWriteProt2",
+        "writeProt3",
+        "nWriteProt3",
     ],
 )
 
@@ -186,22 +186,22 @@ class OptionBytes:
 
     def toBytes(self):
         fob = FlashOptionBytes(
-            getByteComplement(self.user),
-            self.user,
-            getByteComplement(self.read_protect),
             self.read_protect,
-            getByteComplement(self.data_byte_1),
-            self.data_byte_1,
-            getByteComplement(self.data_byte_0),
+            getByteComplement(self.read_protect),
+            self.user,
+            getByteComplement(self.user),
             self.data_byte_0,
-            getByteComplement(self.write_protect_1),
-            self.write_protect_1,
-            getByteComplement(self.write_protect_0),
+            getByteComplement(self.data_byte_0),
+            self.data_byte_1,
+            getByteComplement(self.data_byte_1),
             self.write_protect_0,
-            getByteComplement(self.write_protect_3),
-            self.write_protect_3,
-            getByteComplement(self.write_protect_2),
+            getByteComplement(self.write_protect_0),
+            self.write_protect_1,
+            getByteComplement(self.write_protect_1),
             self.write_protect_2,
+            getByteComplement(self.write_protect_2),
+            self.write_protect_3,
+            getByteComplement(self.write_protect_3),
         )
 
         raw = pack(">16B", *[ob for ob in fob])
@@ -283,8 +283,11 @@ class OptionBytes:
         return self.read_protect
     
     @readProtect.setter
-    def readProtect(self, data: int):
-        self.read_protect = data & 0xFF
+    def readProtect(self, enabled: bool):
+        if enabled: 
+            self.read_protect = 0
+        else:
+            self.read_protect = 0xA5
         self.updateRawBytes()
 
     @property
@@ -323,6 +326,13 @@ class OptionBytes:
         self.write_protect_3 = data & 0xFF
         self.updateRawBytes()
 
+    def dumpOptionBytes(self):
+        print(f"nUser [{getByteComplement(self.user)}] user [{self.user}]", end="\t")
+        print(f"Wdt type: {'software' if self.watchdog_type else 'hardware'}", end="\t")
+        print(f"ReadProtect: {hex(self.readProtect)}")
+        print(f"Data Byte 0: {hex(self.dataByte0)}\tData Byte 1: {hex(self.dataByte1)}")
+        print("Raw: ", end="\t")
+        print(self.raw_bytes)
 
 
 class DeviceType:

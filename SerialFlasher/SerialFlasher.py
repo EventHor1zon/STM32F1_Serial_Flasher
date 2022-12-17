@@ -573,10 +573,8 @@ class SerialTool:
         success = self.writeDevice(commands)
 
         if success:
-            print("First ack")
             first_ack = self.waitForAck()
-            print("second ack")
-            second_ack = self.waitForAck(timeout=10)
+            second_ack = self.waitForAck(timeout=0.5)
         self.connected = False
 
         return (first_ack & second_ack)

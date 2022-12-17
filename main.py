@@ -2,7 +2,7 @@ from time import sleep
 from serial import Serial, SerialTimeoutException, SerialException, PARITY_EVEN
 from SerialFlasher.SerialFlasher import SerialTool
 from struct import unpack
-
+import sys
 
 def main():
     pass
@@ -36,13 +36,39 @@ if __name__ == "__main__":
     else:
         print("Activity failed")
 
-
-    success, rx = sf.cmdGetVersionProt()
+    success = sf.cmdReadoutUnprotect()
 
     if success:
-        print(f"Success! CmdVersionProtect {[hex(b) for b in rx]} {rx}")
+        print("Success! Readout should now be allowed. Device will reset.")
     else:
-        print("Activity failed")
+        print("Failed to cmd Read Unprotect")
+        sys.exit(0)
+
+    sleep(2)
+    print("Reconnecting...")
+
+    sf.connect()
+
+
+    success = sf.cmdWriteUnprotect()
+
+    if success:
+        print("Success! Write should now be allowed. Device will reset.")
+    else:
+        print("Failed to cmd Write Unprotect")
+        sys.exit(0)
+
+    sleep(2)
+    print("Reconnecting...")
+
+    sf.connect()
+
+    # success, rx = sf.cmdGetVersionProt()
+
+    # if success:
+    #     print(f"Success! CmdVersionProtect {[hex(b) for b in rx]} {rx}")
+    # else:
+    #     print("Activity failed")
 
 
 
@@ -69,6 +95,10 @@ if __name__ == "__main__":
     # success, rx = sf.cmdReadFromMemoryAddress(0x1FFFF7E0, 2)
     # d = unpack(fmt, rx)
     # print(f"State: {success} Data {d}")
+
+    success = sf.cmdWriteToMemoryAddress(0x20000800, bytearray([0x01, 0x02, 0x03, 0x04]))
+
+    print(f"Write to RAM memory: {success}")
 
     success, rx = sf.cmdReadFromMemoryAddress(0x20000800, 4)
     print(f"State: {success} Data: {rx}")
