@@ -414,7 +414,7 @@ class SerialTool:
             @return True on Success
         """
         if len(data) > 256 or len(data) < 1:
-            raise InvalidWriteLengthError
+            raise InvalidWriteLengthError(f"Invalid length: {len(data)}")
         
         if len(data) % 4 > 0:
             raise InvalidWriteLengthError("Must be a multiple of 4 bytes")

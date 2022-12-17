@@ -279,8 +279,8 @@ class OptionBytes:
         self.updateRawBytes()
     
     @property
-    def readProtect(self):
-        return self.read_protect
+    def readProtect(self) -> bool:
+        return False if self.read_protect == 0xA5 else True
     
     @readProtect.setter
     def readProtect(self, enabled: bool):

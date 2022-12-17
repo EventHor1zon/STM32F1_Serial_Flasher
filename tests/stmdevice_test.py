@@ -28,8 +28,10 @@ DEVICE_SERIAL_BAUD = 57600
 DEVICE_SERIAL_WRT_TIMEOUT_S = 1.0
 DEVICE_SERIAL_RD_TIMEOUT_S = 1.0
 DEVICE_TEST_READ_INVALID_ADDR = 0x20000000
+STM_DEVICE_TEST_CHAR = 0x41
 STM_TEST_VALID_OPTBYTE_DATA = b'\xa5Z\x04\xfb"\xdd\x11\xee\x00\xff\x00\xff\x00\xff\x00\xff'
-SMT_TEST_BINARY_PATH = "./binaries/blackpill_blink.bin"
+STM_TEST_BINARY_PATH = "/home/rich/Development/PyDev/STM32Tools/STM32F1_Serial_Flasher/tests/binaries/blackpill_blink.bin"
+STM_DEVICE_TEST_RAM_ADDR = 0x20002000
 
 
 def dump_option_bytes(data: bytes):
@@ -102,15 +104,15 @@ class STMInterfaceTestCase(unittest.TestCase):
     def testWriteDataToRam(self):
         """ test we can write a byte to RAM """
         success = self.stm.readDeviceInfo()
-        success = self.stm.writeToRam(0x20002000, bytearray([0x01, 0x02, 0x03, 0x04]))
+        success = self.stm.writeToRam(STM_DEVICE_TEST_RAM_ADDR, bytearray([0x01, 0x02, 0x03, 0x04]))
         self.assertTrue(success)
 
     def testReadDataFromRam(self):
         """ test we can read a byte from RAM """
         success = self.stm.readDeviceInfo()
-        success = self.stm.writeToRam(0x20002000, bytearray([0x01, 0x02, 0x03, 0x04]))
+        success = self.stm.writeToRam(STM_DEVICE_TEST_RAM_ADDR, bytearray([0x01, 0x02, 0x03, 0x04]))
         self.assertTrue(success)
-        success, rx = self.stm.readFromRam(0x20002000, 4)
+        success, rx = self.stm.readFromRam(STM_DEVICE_TEST_RAM_ADDR, 4)
         self.assertTrue(success)
         self.assertEqual(rx, bytearray([0x01, 0x02, 0x03, 0x04]))
 
@@ -137,35 +139,65 @@ class STMInterfaceTestCase(unittest.TestCase):
         success = self.stm.readDeviceInfo()
         success = self.stm.readOptionBytes()
         self.assertTrue(success)
-        self.assertEqual(self.stm.device.opt_bytes.readProtect, 0xA5)
+        self.assertEqual(self.stm.device.opt_bytes.read_protect, 0xA5)
 
 
     def testWriteOptionBytesData(self):
+        """ test we can write a valid config to the option bytes 
+            we check the value of the data byte to ensure write success
+        """
         success = self.stm.readDeviceInfo()
         success = self.stm.readOptionBytes()
         self.assertTrue(success)
 
-        print("Pre write")
-
-        op = OptionBytes.FromBytes(STM_TEST_VALID_OPTBYTE_DATA)
-        op.dumpOptionBytes()
-
-
         write_success = self.stm.writeToOptionBytes(STM_TEST_VALID_OPTBYTE_DATA, reconnect=True)
         self.assertTrue(write_success)
-
-
 
         success = self.stm.readDeviceInfo()
         success = self.stm.readOptionBytes()
         self.assertEqual(success, True)
 
-        print("Post write")
-        self.stm.device.opt_bytes.dumpOptionBytes()
-
         self.assertEqual(self.stm.device.opt_bytes.data_byte_0, STM_TEST_VALID_OPTBYTE_DATA[4])
+
 
     def testReadUnprotect(self):
         success = self.stm.readUnprotectFlashMemory()
         self.assertEqual(success, True)
 
+
+    def testReadProtect(self):
+        """ assert we can successfully call readProtectFlashMemory
+            and assert that reads from flash fail
+        """
+        success = self.stm.readProtectFlashMemory()
+        self.assertEqual(success, True)
+
+        success = self.stm.readDeviceInfo()
+        success = self.stm.readOptionBytes()
+
+        success, rx = self.stm.readFromFlash(self.stm.device.flash_memory.start, 4)
+        self.assertEqual(success, False)
+
+        self.assertEqual(self.stm.device.opt_bytes.readProtect, True)
+
+        """ cleanup for this test """
+        self.stm.readUnprotectFlashMemory()
+
+
+    def testLongWriteToFlash(self):
+        """ test we can write a 516 len bytes to 
+            flash memory, testing the multiple write 
+            and remainder function
+        """
+        self.stm.readDeviceInfo()
+
+        success = self.stm.writeToFlash(self.stm.device.flash_memory.start, bytearray([STM_DEVICE_TEST_CHAR]*516))
+
+        self.assertEqual(success, True)
+
+
+    def testApplicationWriteToFlash(self):
+        self.stm.readDeviceInfo()
+        success = self.stm.writeApplicationFileToFlash(STM_TEST_BINARY_PATH)
+
+        self.assertEqual(success, True)

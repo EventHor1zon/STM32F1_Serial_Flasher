@@ -59,6 +59,7 @@ class STMInterface:
 
         return success
 
+
     def readDeviceInfo(self):
         """ collects the object's id and bootloader version
             and creates a device model from it 
@@ -134,10 +135,7 @@ class STMInterface:
         if self.device is None:
             raise InformationNotRetrieved("Must read device type first")
 
-        print(f"Writing to option bytes start address: {hex(self.device.flash_option_bytes.start)}")
         success = self._writeToMem(self.device.flash_option_bytes.start, data)
-
-        print(f"Write success {success}")
 
         if success:
             self.connected = False
@@ -201,6 +199,7 @@ class STMInterface:
             )
             if success: 
                 master_rx += rx
+
         return success, master_rx
 
 
@@ -209,6 +208,7 @@ class STMInterface:
         length = len(data)
         full_writes = int(length / 256)
         rem = length % 256
+        success = True
 
         for i in range(full_writes):
             success = self.serialTool.cmdWriteToMemoryAddress(
@@ -218,7 +218,7 @@ class STMInterface:
                 raise InvalidResponseLengthError("Invalid status")
         if rem > 0:
             success = self.serialTool.cmdWriteToMemoryAddress(
-                (address + (full_writes * 256)), data[(full_writes * 256) : rem]
+                (address + (full_writes * 256)), data[(full_writes * 256) : (full_writes * 256)+rem]
             )
             if not success:
                 raise InvalidResponseLengthError(f"Invalid status")
@@ -262,6 +262,7 @@ class STMInterface:
             raise InvalidWriteLengthError("Write length should be multiple of 4 bytes")
         return self._writeToMem(address, data)
 
+
     def readFromFlash(self, address: int, length: int):
         if self.connected is False:
             raise DeviceNotConnectedError
@@ -292,7 +293,7 @@ class STMInterface:
             )
         if not self.device.flash_memory.is_valid(address + len(data)):
             raise InvalidWriteLengthError(
-                f"Write would go out of bounds ({hex(self.device.ram.start)} - {hex(self.device.ram.end-1)}"
+                f"Write would go out of bounds ({hex(self.device.flash_memory.start)} - {hex(self.device.flash_memory.end-1)}"
             )
         if len(data) % 4 > 0:
             raise InvalidWriteLengthError("Write length should be multiple of 4 bytes")
@@ -308,7 +309,7 @@ class STMInterface:
 
 
 
-    def writeApplicationFileToFlash(self, path: str) -> bool:
+    def writeApplicationFileToFlash(self, path: str, offset: int=0) -> bool:
         """! write a binary application to flash memory
             rely on the file io exception if invalid file
             @param path - the path to the file application
@@ -319,8 +320,8 @@ class STMInterface:
         if self.device is None:
             raise InformationNotRetrieved
         with open(path, "rb") as fp:
-            content = fp.read()
-            success = self.writeToFlash(self.device.flash_memory.start, bytearray(content))
+            content = fp.read(-1)
+            success = self.writeToFlash(self.device.flash_memory.start+offset, bytearray(content))
 
         return success
 
