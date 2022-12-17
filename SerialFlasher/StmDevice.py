@@ -123,7 +123,6 @@ class STMInterface:
         return success
 
 
-
     def writeToOptionBytes(self, data: bytearray, reconnect: bool = False) -> bool:
         """! write data to the option bytes register. This operation causes a
              device reset to apply changes.

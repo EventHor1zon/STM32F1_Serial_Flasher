@@ -28,7 +28,7 @@ DEVICE_SERIAL_BAUD = 57600
 DEVICE_SERIAL_WRT_TIMEOUT_S = 1.0
 DEVICE_SERIAL_RD_TIMEOUT_S = 1.0
 DEVICE_TEST_READ_INVALID_ADDR = 0x20000000
-STM_TEST_VALID_OPTBYTE_DATA = b'\xfc\x03Z\xa5w\x88\xbbD\x00\xff\x00\xff\x00\xff\x00\xff'
+STM_TEST_VALID_OPTBYTE_DATA = b'\xa5Z\x04\xfb"\xdd\x11\xee\x00\xff\x00\xff\x00\xff\x00\xff'
 SMT_TEST_BINARY_PATH = "./binaries/blackpill_blink.bin"
 
 
@@ -137,7 +137,7 @@ class STMInterfaceTestCase(unittest.TestCase):
         success = self.stm.readDeviceInfo()
         success = self.stm.readOptionBytes()
         self.assertTrue(success)
-        self.assertEqual(self.stm.device.opt_bytes.user, getByteComplement(0xA5))
+        self.assertEqual(self.stm.device.opt_bytes.readProtect, 0xA5)
 
 
     def testWriteOptionBytesData(self):
@@ -163,7 +163,7 @@ class STMInterfaceTestCase(unittest.TestCase):
         print("Post write")
         self.stm.device.opt_bytes.dumpOptionBytes()
 
-        self.assertEqual(self.stm.device.opt_bytes.data_byte_0, STM_TEST_VALID_OPTBYTE_DATA[5])
+        self.assertEqual(self.stm.device.opt_bytes.data_byte_0, STM_TEST_VALID_OPTBYTE_DATA[4])
 
     def testReadUnprotect(self):
         success = self.stm.readUnprotectFlashMemory()
