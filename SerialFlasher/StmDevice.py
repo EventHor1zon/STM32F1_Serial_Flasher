@@ -1,10 +1,10 @@
 from struct import unpack
 from time import sleep
-from .utilities import unpack16BitInt
-from .constants import *
-from .errors import *
-from .devices import DeviceDensity, DeviceType
-from .SerialFlasher import SerialTool
+from utilities import unpack16BitInt
+from constants import *
+from errors import *
+from devices import DeviceDensity, DeviceType
+from SerialFlasher import SerialTool
 
 
 class STMInterface:

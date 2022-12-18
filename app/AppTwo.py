@@ -6,12 +6,6 @@ from textual.widgets import Header, Footer, Placeholder, ScrollView, Widget
 
 
 
-
-class OptionBytes(Widget):
-
-    async def 
-
-
 class MyApp(App):
     """An example of a very simple Textual App"""
 
