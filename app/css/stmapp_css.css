@@ -28,7 +28,6 @@ TextBox {
 
 OptBytesDisplay {
     height: 100%;
-    padding: 1;
 }
 
 StringPutter {

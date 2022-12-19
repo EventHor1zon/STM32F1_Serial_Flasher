@@ -8,14 +8,18 @@
 
 import sys
 
+sys.path.append("../SerialFlasher")
+print(f"{sys.path}")
+from StmDevice import STMInterface
+
 from rich.panel import Panel
 from rich.table import Table, Column, Row
 from rich.style import StyleType, Style
 from rich.box import HEAVY, HEAVY_EDGE, SQUARE
 from rich.console import RenderableType, Group
-
 from rich.text import Text
 from rich import print as rprint
+
 from textual.app import App, ComposeResult
 from textual.events import Event, Key
 from textual.message import Message
@@ -33,6 +37,7 @@ from textual.widgets import (
     Placeholder,
 )
 
+from chip_image import generateImage
 
 APPLICATION_NAME = "StmF1 Flasher Tool"
 APPLICATION_VERSION = "0.0.1"
@@ -41,60 +46,6 @@ APPLICATION_BANNER = """
 ░▀▀█░░█░░█░█░░░█▀▀░█░░░█▀█░▀▀█░█▀█░█▀▀░█▀▄
 ░▀▀▀░░▀░░▀░▀░░░▀░░░▀▀▀░▀░▀░▀▀▀░▀░▀░▀▀▀░▀░▀
 """
-
-CHIP_IMG = """
-              █ █ █ █ █ █
-            ▄             ▄
-            ▄             ▄
-            ▄▄
-            ▄▄
-            ▄             ▄
-            ▄             ▄
-              █ █ █ █ █ █
-"""
-
-print(f"{sys.path}")
-
-import os
-
-print(os.getcwd())
-sys.path.append("../SerialFlasher")
-print(f"{sys.path}")
-from StmDevice import STMInterface
-
-
-def generateImage(dev_type: str, density: str):
-    r = CHIP_IMG.split("\n")
-    ## format the name row
-    if len(dev_type) > 13:
-        dev_type = dev_type[:13]
-    spaces = 13 - len(dev_type)
-    new = (
-        (" " * 12)
-        + ("▄")
-        + (" " * int(spaces / 2))
-        + dev_type
-        + (" " * (int(spaces / 2) + 1 if spaces % 2 == 1 else int(spaces / 2)))
-        + ("▄")
-    )
-    r[4] = new
-    ## format the density row
-    if len(density) > 13:
-        density = density[:13]
-
-    spaces = 13 - len(density)
-    dens = (
-        (" " * 12)
-        + ("▄")
-        + (" " * int(spaces / 2))
-        + density
-        + (" " * (int(spaces / 2) + 1 if spaces % 2 == 1 else int(spaces / 2)))
-        + ("▄")
-    )
-
-    r[5] = dens
-
-    return "\n".join(r)
 
 
 def SuccessMessage(msg):
@@ -136,9 +87,10 @@ def binary_colour(
 INPUT_TYPE_NONE = 0
 INPUT_TYPE_PORT = 1
 INPUT_TYPE_BAUD = 2
-INPUT_TYPE_FILEPATH = 3
+INPUT_TYPE_FLASH_READ_FILEPATH = 3
 INPUT_TYPE_FLASH_OFFSET = 4
-
+INPUT_TYPE_FLASH_SZ = 5
+INPUT_TYPE_APP_LOAD_FILEPATH = 6
 
 panel_format = {
     "box": SQUARE,
@@ -232,6 +184,7 @@ class StringGetter(Input):
     async def action_submit(self) -> None:
         await super().action_submit()
         self.reset_focus()
+        self.value = ""
 
 
 class StringPutter(TextLog):
@@ -337,6 +290,8 @@ class StmApp(App):
     [bold]e[/bold]: Erase all flash
     [bold]u[/bold]: Upload application to flash
     [bold]o[/bold]: Configure option bytes
+    [bold]c[/bold]: Check flash blocks
+    [bold]h[/bold]: Help
 
     [bold]x[/bold]: Exit
 
@@ -353,6 +308,10 @@ class StmApp(App):
     stm_device = STMInterface()
     conn_port = ""
     conn_baud = 9600
+
+    read_len = 0
+    offset = 0
+    filepath = None
 
     default_conn_info = Table("", "", **clear_table_format)
 
@@ -385,7 +344,8 @@ class StmApp(App):
         ),
         opts="",
     )
-    input = StringGetter()
+
+    input = StringGetter(placeholder=">>>")
 
     ## keep track of expected input so we know
     ## when to pay attention to the input box
@@ -600,13 +560,21 @@ class StmApp(App):
                 self.exit()
         return await super()._on_key(event)
 
-    async def on_input_submitted(self, message: Input.Submitted) -> None:
-        if self.awaiting == INPUT_TYPE_NONE:
-            pass
-        elif self.awaiting == INPUT_TYPE_PORT:
+    async def app_state_machine(self, message):
+        """app state machine
+        triggered by user input, state is self.awaiting
+        TODO: Expand with other states & actions, obvs
+        TODO: Fix read length off-by-1
+        """
+
+        ## state awaiting input port
+        if self.awaiting == INPUT_TYPE_PORT:
             self.conn_port = message.value
             self.msg_log.write(InfoMessage(f"Setting port to {self.conn_port}"))
             self.update_tables()
+            return INPUT_TYPE_NONE
+
+        ## state awaiting input baud
         elif self.awaiting == INPUT_TYPE_BAUD:
             try:
                 self.conn_baud = int(message.value)
@@ -614,12 +582,119 @@ class StmApp(App):
                 self.update_tables()
             except ValueError:
                 self.msg_log.write(ErrorMessage("Invalid baud"))
-        elif self.awaiting == INPUT_TYPE_FILEPATH:
+            finally:
+                return INPUT_TYPE_NONE
+
+        ## state awaiting filepath input
+        elif self.awaiting == INPUT_TYPE_APP_LOAD_FILEPATH:
             self.filepath = message.value
+            return INPUT_TYPE_NONE
+
+        ## state awaiting flash offset
+        elif self.awaiting == INPUT_TYPE_FLASH_OFFSET:
+            if (
+                int(message.value) < 0
+                or int(message.value) > self.stm_device.device.flash_memory.size - 4
+            ):
+                self.msg_log.write(
+                    ErrorMessage(
+                        f"Error - Invalid offset (min: 4, max: {self.stm_device.device.flash_memory.size - 4}"
+                    )
+                )
+                return INPUT_TYPE_NONE
+            else:
+                self.offset = int(message.value)
+                self.msg_log.write(InfoMessage("Enter read length"))
+                self.set_focus(self.input)
+                return INPUT_TYPE_FLASH_SZ
+
+        elif self.awaiting == INPUT_TYPE_FLASH_SZ:
+            if int(message.value) % 4 != 0 or int(message.value) < 4:
+                self.msg_log.write(
+                    ErrorMessage(
+                        "Invalid read length (must be a multiple of 4 bytes (min: 4))"
+                    )
+                )
+                self.set_focus(self.input)
+                return INPUT_TYPE_FLASH_SZ
+            elif (
+                int(message.value)
+                + self.stm_device.device.flash_memory.start
+                + self.offset
+            ) > self.stm_device.device.flash_memory.end:
+                self.msg_log.write(
+                    ErrorMessage("Invalid read length, read would go out of bounds")
+                )
+                self.set_focus(self.input)
+                return INPUT_TYPE_FLASH_SZ
+            else:
+                self.read_len = int(message.value)
+                self.msg_log.write(InfoMessage("Enter output file path"))
+                self.set_focus(self.input)
+                return INPUT_TYPE_FLASH_READ_FILEPATH
+
+        elif self.awaiting == INPUT_TYPE_FLASH_READ_FILEPATH:
+            try:
+                self.filepath = message.value
+                await self.read_from_flash()
+            except Exception as e:
+                self.msg_log.write(e)
+                self.awaiting = INPUT_TYPE_NONE
         else:
             pass
-        self.awaiting = INPUT_TYPE_NONE
+
         self.input.value = ""
+
+    async def read_from_flash(self):
+        if self.filepath is not None and self.read_len > 0:
+            success = True
+            chunks = int(self.read_len / 256)
+            rem = int(self.read_len % 256)
+
+            with open(self.filepath, "wb") as f:
+                for i in range(chunks):
+                    self.msg_log.write(InfoMessage(f"Reading chunk {i+1}"))
+                    success, rx = self.stm_device.readFromFlash(
+                        self.stm_device.device.flash_memory.start + self.offset,
+                        256,
+                    )
+                    if success:
+                        f.write(rx)
+                    else:
+                        self.msg_log.write(ErrorMessage(f"Error Reading chunk {i+1}"))
+                        break
+
+                if rem > 0 and success == True:
+                    self.msg_log.write(InfoMessage(f"Reading chunk {chunks+1}"))
+                    success, rx = self.stm_device.readFromFlash(
+                        self.stm_device.device.flash_memory.start
+                        + self.offset
+                        + (chunks * 256),
+                        rem,
+                    )
+                    if success:
+                        f.write(rx)
+                    else:
+                        self.msg_log.write(
+                            ErrorMessage(f"Error Reading chunk {chunks+1}")
+                        )
+            if success:
+                self.msg_log.write(
+                    SuccessMessage(
+                        f"Succesfully read {self.read_len} bytes from flash into file {self.filepath}"
+                    )
+                )
+
+        ## clear the self variables
+        self.read_len = 0
+        self.filepath = None
+        self.offset = 0
+
+    async def on_input_submitted(self, message: Input.Submitted) -> None:
+        if self.awaiting == INPUT_TYPE_NONE:
+            pass
+        else:
+            self.awaiting = await self.app_state_machine(message)
 
 
 if __name__ == "__main__":
