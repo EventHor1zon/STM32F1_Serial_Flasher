@@ -42,6 +42,16 @@ APPLICATION_BANNER = """
 ░▀▀▀░░▀░░▀░▀░░░▀░░░▀▀▀░▀░▀░▀▀▀░▀░▀░▀▀▀░▀░▀
 """
 
+CHIP_IMG = """
+              █ █ █ █ █ █
+            ▄             ▄
+            ▄             ▄
+            ▄▄
+            ▄▄
+            ▄             ▄
+            ▄             ▄
+              █ █ █ █ █ █
+"""
 
 print(f"{sys.path}")
 
@@ -53,27 +63,98 @@ print(f"{sys.path}")
 from StmDevice import STMInterface
 
 
+def generateImage(dev_type: str, density: str):
+    r = CHIP_IMG.split("\n")
+    ## format the name row
+    if len(dev_type) > 13:
+        dev_type = dev_type[:13]
+    spaces = 13 - len(dev_type)
+    new = (
+        (" " * 12)
+        + ("▄")
+        + (" " * int(spaces / 2))
+        + dev_type
+        + (" " * (int(spaces / 2) + 1 if spaces % 2 == 1 else int(spaces / 2)))
+        + ("▄")
+    )
+    r[4] = new
+    ## format the density row
+    if len(density) > 13:
+        density = density[:13]
+
+    spaces = 13 - len(density)
+    dens = (
+        (" " * 12)
+        + ("▄")
+        + (" " * int(spaces / 2))
+        + density
+        + (" " * (int(spaces / 2) + 1 if spaces % 2 == 1 else int(spaces / 2)))
+        + ("▄")
+    )
+
+    r[5] = dens
+
+    return "\n".join(r)
+
+
 def SuccessMessage(msg):
-    return Text(f"[+] {msg}", "bold italic green")
+    return Text.from_markup(
+        f"[bold][[green]+[/green]][/bold] {msg}",
+    )
 
 
 def InfoMessage(msg):
-    return Text(f"[@] {msg}", "italic yellow")
+    return Text.from_markup(f"[bold][[yellow]@[/yellow]][/bold] {msg}")
 
 
 def FailMessage(msg):
-    return Text(f"[-] {msg}", "bold italic orange")
+    return Text.from_markup(f"[bold][[magenta]-[/magenta]][/bold] {msg}")
 
 
 def ErrorMessage(msg):
-    return Text(f"[!] {msg}", "bold red")
+    return Text.from_markup(f"[bold][[red]![/red]][/bold] {msg}")
+
+
+def MARKUP(msg):
+    return Text.from_markup(msg)
+
+
+def binary_colour(
+    condition: bool,
+    true_str: str = None,
+    false_str=None,
+    true_fmt: str = "green",
+    false_fmt: str = "red",
+):
+    true_msg = str(condition) if true_str is None else true_str
+    false_msg = str(condition) if false_str is None else false_str
+    return Text.from_markup(
+        f"[{true_fmt if condition else false_fmt}]{true_msg if condition else false_msg}[/{true_fmt if condition else false_fmt}]"
+    )
 
 
 INPUT_TYPE_NONE = 0
 INPUT_TYPE_PORT = 1
 INPUT_TYPE_BAUD = 2
 INPUT_TYPE_FILEPATH = 3
+INPUT_TYPE_FLASH_OFFSET = 4
 
+
+panel_format = {
+    "box": SQUARE,
+    "expand": True,
+    "title_align": "left",
+    "border_style": Style(color="yellow"),
+}
+
+
+clear_table_format = {
+    "show_edge": False,
+    "show_header": False,
+    "expand": True,
+    "box": None,
+    "padding": (0, 1),
+}
 
 connected = False
 accept_input = False
@@ -229,7 +310,7 @@ class StmApp(App):
             """
 
 
-[green]Actions[/green]
+    [green]Actions[/green]
 
     [bold]c[/bold]: Connect to Device
     [bold]v[/bold]: Print Version
@@ -240,11 +321,8 @@ class StmApp(App):
 
     """
         ),
-        box=SQUARE,
         title="[bold red]Menu[/bold red]",
-        expand=True,
-        title_align="left",
-        border_style=Style(color="yellow"),
+        **panel_format,
     )
 
     connected_msg = Panel(
@@ -252,7 +330,7 @@ class StmApp(App):
             """
 
 
-[green]Actions[/green]
+    [green]Actions[/green]
 
     [bold]r[/bold]: Read Flash memory
     [bold]m[/bold]: Read RAM
@@ -264,11 +342,8 @@ class StmApp(App):
 
     """
         ),
-        box=SQUARE,
         title="[bold red]Menu[/bold red]",
-        expand=True,
-        title_align="left",
-        border_style=Style(color="yellow"),
+        **panel_format,
     )
 
     # BINDINGS = [("d", "toggle_dark", "Toggle dark mode")]
@@ -279,26 +354,15 @@ class StmApp(App):
     conn_port = ""
     conn_baud = 9600
 
-    default_conn_info = Table(
-        "",
-        "",
-        show_edge=False,
-        show_header=False,
-        expand=True,
-        box=None,
-        padding=(0, 1),
-    )
+    default_conn_info = Table("", "", **clear_table_format)
 
     default_device_info = Panel(
         Text.from_markup(
             "No Device",
             style=Style(color="red", bold=True, italic=True, blink=True),
         ),
-        box=SQUARE,
         title="[bold orange]Device[/bold orange]",
-        expand=True,
-        title_align="left",
-        border_style=Style(color="yellow"),
+        **panel_format,
     )
 
     banner = Static(APPLICATION_BANNER, expand=True, id="banner")
@@ -311,18 +375,13 @@ class StmApp(App):
             Group(
                 Panel(
                     default_conn_info,
-                    box=SQUARE,
                     title="[bold yellow]Connection[/bold yellow]",
-                    expand=True,
-                    title_align="left",
-                    border_style=Style(color="yellow"),
+                    **panel_format,
                 ),
                 default_device_info,
                 fit=True,
             ),
-            box=SQUARE,
-            expand=True,
-            border_style=Style(color="yellow"),
+            **panel_format,
         ),
         opts="",
     )
@@ -333,13 +392,10 @@ class StmApp(App):
     awaiting = INPUT_TYPE_NONE
 
     def __init__(self, driver_class=None, css_path=None, watch_css: bool = False):
+        self.default_conn_info.add_row("", "")
         self.default_conn_info.add_row(
             "Connected    ",
-            Text.from_markup(
-                f"[red]{self.connected}[/red]"
-                if not self.connected
-                else f"[green]{self.connected}[/green]"
-            ),
+            binary_colour(self.connected),
         )
         self.default_conn_info.add_row("Port         ", f"{self.conn_port}")
         self.default_conn_info.add_row("Baud         ", f"{self.conn_baud}")
@@ -359,8 +415,24 @@ class StmApp(App):
         opts = self.get_widget_by_id("opts")
 
         if self.connected:
+            dev_shortname = self.stm_device.device.name.split("xxx")[0] + "xxx"
+            density = self.stm_device.device.name.split("xxx")[1].split("Density")
+
+            dens_shortname = density[0] + (
+                "VAL" if len(density) > 1 and len(density[1]) > 1 else ""
+            )
             dev_info.update(
-                Panel(Group(self.build_conn_table(), self.build_device_table()))
+                Panel(
+                    Group(
+                        self.build_conn_table(),
+                        self.build_device_table(),
+                        generateImage(
+                            dev_shortname,
+                            dens_shortname,
+                        ),
+                    ),
+                    **panel_format,
+                )
             )
 
             menu.update(self.connected_msg)
@@ -370,9 +442,7 @@ class StmApp(App):
             dev_info.update(
                 Panel(
                     Group(self.build_conn_table(), self.default_device_info),
-                    box=SQUARE,
-                    expand=True,
-                    border_style=Style(color="yellow"),
+                    **panel_format,
                 )
             )
             opts.update("")
@@ -384,31 +454,43 @@ class StmApp(App):
         )
         opts_table.add_row(
             "Read Protect",
-            Text.from_markup(
-                "[green]enabled[/green]"
-                if self.stm_device.device.opt_bytes.readProtect
-                else "[orange]disabled[/orange]"
+            binary_colour(
+                self.stm_device.device.opt_bytes.readProtect,
+                true_str="enabled",
+                true_fmt="bold green",
+                false_str="disabled",
+                false_fmt="bold blue",
             ),
         )
         opts_table.add_row(
             "Watchdog Type",
-            Text.from_markup(
-                "[yellow]Hardware[/yellow]"
-                if not self.stm_device.device.opt_bytes.watchdogType
-                else "[purple]Software[/purple]"
+            binary_colour(
+                self.stm_device.device.opt_bytes.watchdogType,
+                false_str="Hardware",
+                true_str="Software",
+                true_fmt="yellow",
+                false_fmt="blue",
             ),
         )
         opts_table.add_row(
             "Rst on Standby",
-            SuccessMessage("enabled")
-            if self.stm_device.device.opt_bytes.resetOnStandby
-            else SuccessMessage("Disabled"),
+            binary_colour(
+                self.stm_device.device.opt_bytes.resetOnStandby,
+                true_str="enabled",
+                true_fmt="bold green",
+                false_str="disabled",
+                false_fmt="bold blue",
+            ),
         )
         opts_table.add_row(
             "Rst on Stop",
-            SuccessMessage("enabled")
-            if self.stm_device.device.opt_bytes.resetOnStop
-            else SuccessMessage("Disabled"),
+            binary_colour(
+                self.stm_device.device.opt_bytes.resetOnStop,
+                true_str="enabled",
+                true_fmt="bold green",
+                false_str="disabled",
+                false_fmt="bold blue",
+            ),
         )
         opts_table.add_row(
             "Data Byte 0", f"{hex(self.stm_device.device.opt_bytes.dataByte0)}"
@@ -428,19 +510,11 @@ class StmApp(App):
         opts_table.add_row(
             "Write Prot 3", str(self.stm_device.device.opt_bytes.writeProtect3)
         )
-        return Panel(opts_table, box=SQUARE, border_style=Style(color="yellow"))
+        return Panel(opts_table, **panel_format)
 
     def build_device_table(self) -> Table:
-        device_table = Table(
-            "",
-            "",
-            box=SQUARE,
-            show_header=False,
-            title_style="bold yellow",
-            title_justify="left",
-            show_edge=False,
-            padding=(0, 1),
-        )
+        device_table = Table("", "", **clear_table_format)
+        device_table.add_row("", "")  # spacer
         device_table.add_row("Device Type   ", f"{self.stm_device.device.name}")
         device_table.add_row("Device ID     ", f"{hex(self.stm_device.getDeviceId())}")
         device_table.add_row(
@@ -457,36 +531,20 @@ class StmApp(App):
             "RAM Size      ", f"{hex(self.stm_device.device.ram.size)}"
         )
         return Panel(
-            device_table,
-            box=SQUARE,
-            border_style=Style(color="yellow"),
+            device_table, title="[bold yellow]Device[/bold yellow]", **panel_format
         )
 
     def build_conn_table(self) -> Table:
-        conn_table = Table(
-            "",
-            "",
-            show_edge=False,
-            show_header=False,
-            expand=True,
-            box=None,
-            padding=(0, 1),
-        )
+        conn_table = Table("", "", **clear_table_format)
+        conn_table.add_row("", "")  # spacer
         conn_table.add_row(
             "Connected    ",
-            Text.from_markup(
-                f"[red]{self.connected}[/red]"
-                if not self.connected
-                else f"[green]{self.connected}[/green]"
-            ),
+            binary_colour(self.connected),
         )
         conn_table.add_row("Port         ", self.conn_port)
         conn_table.add_row("Baud         ", str(self.conn_baud))
         return Panel(
-            conn_table,
-            box=SQUARE,
-            title="[bold yellow]Connection[/bold yellow]",
-            border_style=Style(color="yellow"),
+            conn_table, title="[bold yellow]Connection[/bold yellow]", **panel_format
         )
 
     def handle_connected(self):
@@ -531,9 +589,15 @@ class StmApp(App):
                 self.awaiting = INPUT_TYPE_BAUD
                 self.msg_log.write("Enter baud: ")
                 self.set_focus(self.input)
+            elif event.char == "x":
+                self.exit()
         else:
             if event.char == "r":
-                pass
+                self.awaiting = INPUT_TYPE_FLASH_OFFSET
+                self.msg_log.write("Enter Offset from start")
+                self.set_focus(self.input)
+            if event.char == "x":
+                self.exit()
         return await super()._on_key(event)
 
     async def on_input_submitted(self, message: Input.Submitted) -> None:
