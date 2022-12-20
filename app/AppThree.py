@@ -37,7 +37,8 @@ from textual.widgets import (
     Placeholder,
 )
 
-from chip_image import generateImage
+from chip_image import generateChipImage, get_device_name_short, get_device_dens_string
+import app_config as config
 
 APPLICATION_NAME = "StmF1 Flasher Tool"
 APPLICATION_VERSION = "0.0.1"
@@ -91,6 +92,11 @@ INPUT_TYPE_FLASH_READ_FILEPATH = 3
 INPUT_TYPE_FLASH_OFFSET = 4
 INPUT_TYPE_FLASH_SZ = 5
 INPUT_TYPE_APP_LOAD_FILEPATH = 6
+
+menu_template = f"""
+[green]Actions[/green]
+        
+"""
 
 panel_format = {
     "box": SQUARE,
@@ -258,49 +264,6 @@ class InfoDisplays(Static):
 
 class StmApp(App):
 
-    disconnected_msg = Panel(
-        Text.from_markup(
-            """
-
-
-    [green]Actions[/green]
-
-    [bold]c[/bold]: Connect to Device
-    [bold]v[/bold]: Print Version
-    [bold]b[/bold]: Set Baud
-    [bold]p[/bold]: Set Port
-
-    [bold]x[/bold]: Exit
-
-    """
-        ),
-        title="[bold red]Menu[/bold red]",
-        **panel_format,
-    )
-
-    connected_msg = Panel(
-        Text.from_markup(
-            """
-
-
-    [green]Actions[/green]
-
-    [bold]r[/bold]: Read Flash memory
-    [bold]m[/bold]: Read RAM
-    [bold]e[/bold]: Erase all flash
-    [bold]u[/bold]: Upload application to flash
-    [bold]o[/bold]: Configure option bytes
-    [bold]c[/bold]: Check flash blocks
-    [bold]h[/bold]: Help
-
-    [bold]x[/bold]: Exit
-
-    """
-        ),
-        title="[bold red]Menu[/bold red]",
-        **panel_format,
-    )
-
     # BINDINGS = [("d", "toggle_dark", "Toggle dark mode")]
     CSS_PATH = "./css/stmapp_css.css"
 
@@ -326,32 +289,10 @@ class StmApp(App):
 
     banner = Static(APPLICATION_BANNER, expand=True, id="banner")
     msg_log = StringPutter(max_lines=8, name="msg_log", id="msg_log")
-
-    ## there's probably a more elegent way of doing this but it works
-    main_display = InfoDisplays(
-        menu=disconnected_msg,
-        info=Panel(
-            Group(
-                Panel(
-                    default_conn_info,
-                    title="[bold yellow]Connection[/bold yellow]",
-                    **panel_format,
-                ),
-                default_device_info,
-                fit=True,
-            ),
-            **panel_format,
-        ),
-        opts="",
-    )
-
     input = StringGetter(placeholder=">>>")
 
-    ## keep track of expected input so we know
-    ## when to pay attention to the input box
-    awaiting = INPUT_TYPE_NONE
-
-    def __init__(self, driver_class=None, css_path=None, watch_css: bool = False):
+    def build_items(self):
+        ## build the initial display items
         self.default_conn_info.add_row("", "")
         self.default_conn_info.add_row(
             "Connected    ",
@@ -359,6 +300,80 @@ class StmApp(App):
         )
         self.default_conn_info.add_row("Port         ", f"{self.conn_port}")
         self.default_conn_info.add_row("Baud         ", f"{self.conn_baud}")
+
+        ## there's probably a more elegent way of doing this but it works
+        self.main_display = InfoDisplays(
+            menu=self.build_menu(),
+            info=Panel(
+                Group(
+                    Panel(
+                        self.default_conn_info,
+                        title="[bold yellow]Connection[/bold yellow]",
+                        **panel_format,
+                    ),
+                    self.default_device_info,
+                    fit=True,
+                ),
+                **panel_format,
+            ),
+            opts="",
+        )
+        ## build the keypress menu items
+        menu_items = [
+            {"key": config.KEY_EXIT, "description": "Exit", "state": "any"},
+            {"key": config.KEY_VERS, "description": "Print Version", "state": "any"},
+            {
+                "key": config.KEY_PORT,
+                "description": "Set Port",
+                "state": "disconnected",
+                "action": None,
+            },
+            {
+                "key": config.KEY_BAUD,
+                "description": "Set Baud",
+                "state": "disconnected",
+                "action": None,
+            },
+            {"key": config.KEY_CONN, "description": "Connect", "state": "disconnected"},
+            {
+                "key": config.KEY_RDRM,
+                "description": "Read RAM to file",
+                "state": "connected",
+                "action": None,
+            },
+            {
+                "key": config.KEY_WRRM,
+                "description": "Write file data to ram",
+                "state": "connected",
+                "action": None,
+            },
+            {
+                "key": config.KEY_UPLD,
+                "description": "Upload application to flash",
+                "state": "connected",
+                "action": None,
+            },
+            {
+                "key": config.KEY_ERFS,
+                "description": "Erase all flash",
+                "state": "connected",
+                "action": None,
+            },
+            {
+                "key": config.KEY_DCON,
+                "description": "Disconnect from device",
+                "state": "connected",
+                "action": None,
+            },
+        ]
+
+    ## keep track of expected input so we know
+    ## when to pay attention to the input box
+    awaiting = INPUT_TYPE_NONE
+
+    def __init__(self, driver_class=None, css_path=None, watch_css: bool = False):
+
+        self.build_items()
         super().__init__(driver_class, css_path, watch_css)
 
     def compose(self) -> ComposeResult:
@@ -375,18 +390,15 @@ class StmApp(App):
         opts = self.get_widget_by_id("opts")
 
         if self.connected:
-            dev_shortname = self.stm_device.device.name.split("xxx")[0] + "xxx"
-            density = self.stm_device.device.name.split("xxx")[1].split("Density")
+            dev_shortname = get_device_name_short(self.stm_device)
+            dens_shortname = get_device_dens_string(self.stm_device)
 
-            dens_shortname = density[0] + (
-                "VAL" if len(density) > 1 and len(density[1]) > 1 else ""
-            )
             dev_info.update(
                 Panel(
                     Group(
                         self.build_conn_table(),
                         self.build_device_table(),
-                        generateImage(
+                        generateChipImage(
                             dev_shortname,
                             dens_shortname,
                         ),
@@ -395,9 +407,13 @@ class StmApp(App):
                 )
             )
 
-            menu.update(self.connected_msg)
-
-            opts.update(self.build_opts_table())
+            opts.update(
+                Panel(
+                    Group(
+                        self.build_opts_table(),
+                    )
+                )
+            )
         else:
             dev_info.update(
                 Panel(
@@ -406,7 +422,36 @@ class StmApp(App):
                 )
             )
             opts.update("")
-            menu.update(self.disconnected_msg)
+        menu.update(self.build_menu())
+
+    def build_menu(self):
+        menu = menu_template
+        self_state = "disconnected" if not self.connected else "connected"
+        opts = [
+            item
+            for item in self.menu_items
+            if item["state"] == self_state or item["state"] == "any"
+        ]
+        for opt in opts:
+            menu += (
+                f"[bold]{opt['key']}[/bold]: {opt['description']}\n"
+                if opt["state"] == self_state
+                else ""
+            )
+
+        menu += "\n"
+        for opt in opts:
+            menu += (
+                f"[bold]{opt['key']}[/bold]: {opt['description']}\n"
+                if opt["state"] == "any"
+                else ""
+            )
+
+        return Panel(
+            Text.from_markup(menu),
+            title="[bold red]Menu[/bold red]",
+            **panel_format,
+        )
 
     def build_opts_table(self) -> Table:
         opts_table = Table(
@@ -417,9 +462,8 @@ class StmApp(App):
             binary_colour(
                 self.stm_device.device.opt_bytes.readProtect,
                 true_str="enabled",
-                true_fmt="bold green",
                 false_str="disabled",
-                false_fmt="bold blue",
+                false_fmt="blue",
             ),
         )
         opts_table.add_row(
@@ -428,7 +472,6 @@ class StmApp(App):
                 self.stm_device.device.opt_bytes.watchdogType,
                 false_str="Hardware",
                 true_str="Software",
-                true_fmt="yellow",
                 false_fmt="blue",
             ),
         )
@@ -437,9 +480,8 @@ class StmApp(App):
             binary_colour(
                 self.stm_device.device.opt_bytes.resetOnStandby,
                 true_str="enabled",
-                true_fmt="bold green",
                 false_str="disabled",
-                false_fmt="bold blue",
+                false_fmt="blue",
             ),
         )
         opts_table.add_row(
@@ -447,9 +489,8 @@ class StmApp(App):
             binary_colour(
                 self.stm_device.device.opt_bytes.resetOnStop,
                 true_str="enabled",
-                true_fmt="bold green",
                 false_str="disabled",
-                false_fmt="bold blue",
+                false_fmt="blue",
             ),
         )
         opts_table.add_row(
@@ -470,7 +511,11 @@ class StmApp(App):
         opts_table.add_row(
             "Write Prot 3", str(self.stm_device.device.opt_bytes.writeProtect3)
         )
-        return Panel(opts_table, **panel_format)
+        return Panel(
+            opts_table,
+            title="[bold cyan]Flash Option bytes[/bold cyan]",
+            **panel_format,
+        )
 
     def build_device_table(self) -> Table:
         device_table = Table("", "", **clear_table_format)
@@ -526,10 +571,12 @@ class StmApp(App):
                 self.conn_port, baud=self.conn_baud, readOptBytes=True
             )
         except Exception as e:
-            print(e)
             self.msg_log.write(e)
         finally:
             return success
+
+    def handle_key(self, key: str):
+        pass
 
     async def _on_key(self, event: Key) -> None:
         if not self.connected:
@@ -556,6 +603,8 @@ class StmApp(App):
                 self.awaiting = INPUT_TYPE_FLASH_OFFSET
                 self.msg_log.write("Enter Offset from start")
                 self.set_focus(self.input)
+            elif event.char == "e":
+                self.msg_low.write(InfoMessage("Erasing flash memory..."))
             if event.char == "x":
                 self.exit()
         return await super()._on_key(event)
