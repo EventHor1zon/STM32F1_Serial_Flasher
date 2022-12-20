@@ -227,6 +227,8 @@ class InfoDisplays(Static):
     """class to display the top three columns of the app
     display and update information about the device
     and commands
+    added extra init args so we can populate the widgets
+    as we yield them
     """
 
     def __init__(
@@ -267,6 +269,10 @@ class StmApp(App):
     # BINDINGS = [("d", "toggle_dark", "Toggle dark mode")]
     CSS_PATH = "./css/stmapp_css.css"
 
+    ## keep track of expected input so we know
+    ## when to pay attention to the input box
+    awaiting = INPUT_TYPE_NONE
+
     connected = False
     stm_device = STMInterface()
     conn_port = ""
@@ -301,40 +307,33 @@ class StmApp(App):
         self.default_conn_info.add_row("Port         ", f"{self.conn_port}")
         self.default_conn_info.add_row("Baud         ", f"{self.conn_baud}")
 
-        ## there's probably a more elegent way of doing this but it works
-        self.main_display = InfoDisplays(
-            menu=self.build_menu(),
-            info=Panel(
-                Group(
-                    Panel(
-                        self.default_conn_info,
-                        title="[bold yellow]Connection[/bold yellow]",
-                        **panel_format,
-                    ),
-                    self.default_device_info,
-                    fit=True,
-                ),
-                **panel_format,
-            ),
-            opts="",
-        )
         ## build the keypress menu items
-        menu_items = [
-            {"key": config.KEY_EXIT, "description": "Exit", "state": "any"},
+        self.menu_items = [
+            {
+                "key": config.KEY_EXIT,
+                "description": "Exit",
+                "state": "any",
+                "action": self.handle_exit_keypress,
+            },
             {"key": config.KEY_VERS, "description": "Print Version", "state": "any"},
             {
                 "key": config.KEY_PORT,
                 "description": "Set Port",
                 "state": "disconnected",
-                "action": None,
+                "action": self.handle_port_keypress,
             },
             {
                 "key": config.KEY_BAUD,
                 "description": "Set Baud",
                 "state": "disconnected",
-                "action": None,
+                "action": self.handle_baud_keypress,
             },
-            {"key": config.KEY_CONN, "description": "Connect", "state": "disconnected"},
+            {
+                "key": config.KEY_CONN,
+                "description": "Connect",
+                "state": "disconnected",
+                "action": self.handle_connect_keypress,
+            },
             {
                 "key": config.KEY_RDRM,
                 "description": "Read RAM to file",
@@ -357,7 +356,7 @@ class StmApp(App):
                 "key": config.KEY_ERFS,
                 "description": "Erase all flash",
                 "state": "connected",
-                "action": None,
+                "action": self.handle_erase_keypress,
             },
             {
                 "key": config.KEY_DCON,
@@ -367,9 +366,23 @@ class StmApp(App):
             },
         ]
 
-    ## keep track of expected input so we know
-    ## when to pay attention to the input box
-    awaiting = INPUT_TYPE_NONE
+        ## there's probably a more elegent way of doing this but it works
+        self.main_display = InfoDisplays(
+            menu=self.build_menu(),
+            info=Panel(
+                Group(
+                    Panel(
+                        self.default_conn_info,
+                        title="[bold yellow]Connection[/bold yellow]",
+                        **panel_format,
+                    ),
+                    self.default_device_info,
+                    fit=True,
+                ),
+                **panel_format,
+            ),
+            opts="",
+        )
 
     def __init__(self, driver_class=None, css_path=None, watch_css: bool = False):
 
@@ -575,38 +588,52 @@ class StmApp(App):
         finally:
             return success
 
-    def handle_key(self, key: str):
+    def handle_port_keypress(self):
+        self.msg_log.write(InfoMessage("Enter Port: "))
+        self.awaiting = INPUT_TYPE_PORT
+        self.set_focus(self.input)
+
+    def handle_connect_keypress(self):
+        if len(self.conn_port) == 0:
+            self.msg_log.write(FailMessage("Must configure port first"))
+            self.awaiting = INPUT_TYPE_PORT
+            self.set_focus(self.input)
+        else:
+            self.connected = self.device_connect()
+            if self.connected == True:
+                self.handle_connected()
+
+    def handle_baud_keypress(self):
+        self.awaiting = INPUT_TYPE_BAUD
+        self.msg_log.write("Enter baud: ")
+        self.set_focus(self.input)
+
+    def handle_readflash_keypress(self):
+        self.awaiting = INPUT_TYPE_FLASH_OFFSET
+        self.msg_log.write("Enter Offset from start")
+        self.set_focus(self.input)
+
+    def handle_erase_keypress(self):
+        self.msg_log.write(InfoMessage("Erasing flash memory..."))
         pass
 
+    def handle_exit_keypress(self):
+        print("Bye!")
+        sys.exit()
+
+    def handle_key(self, key: str):
+        ## do not accept new keys during
+        ## operations (unless they're specifically requested)
+        if key == "p":
+            self.action_screenshot()
+
+        if self.awaiting == INPUT_TYPE_NONE:
+            selection = [item for item in self.menu_items if item["key"] == key][0]
+            if selection["action"] != None:
+                selection["action"]()
+
     async def _on_key(self, event: Key) -> None:
-        if not self.connected:
-            if event.char == "p":
-                self.msg_log.write(InfoMessage("Enter Port: "))
-                self.awaiting = INPUT_TYPE_PORT
-                self.set_focus(self.input)
-            elif event.char == "c" and len(self.conn_port) == 0:
-                self.msg_log.write(ErrorMessage("Error - must configure port first"))
-                self.awaiting = INPUT_TYPE_PORT
-                self.set_focus(self.input)
-            elif event.char == "c":
-                self.connected = self.device_connect()
-                if self.connected == True:
-                    self.handle_connected()
-            elif event.char == "b":
-                self.awaiting = INPUT_TYPE_BAUD
-                self.msg_log.write("Enter baud: ")
-                self.set_focus(self.input)
-            elif event.char == "x":
-                self.exit()
-        else:
-            if event.char == "r":
-                self.awaiting = INPUT_TYPE_FLASH_OFFSET
-                self.msg_log.write("Enter Offset from start")
-                self.set_focus(self.input)
-            elif event.char == "e":
-                self.msg_low.write(InfoMessage("Erasing flash memory..."))
-            if event.char == "x":
-                self.exit()
+        self.handle_key(event.char)
         return await super()._on_key(event)
 
     async def app_state_machine(self, message):
