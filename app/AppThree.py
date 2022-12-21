@@ -9,8 +9,9 @@
 import sys
 
 sys.path.append("../SerialFlasher")
-print(f"{sys.path}")
 from StmDevice import STMInterface
+
+import asyncio
 
 from rich.panel import Panel
 from rich.table import Table, Column, Row
@@ -37,7 +38,7 @@ from textual.widgets import (
     Placeholder,
 )
 
-from chip_image import generateChipImage, get_device_name_short, get_device_dens_string
+from chip_image import ChipImage, generateFlashImage
 import app_config as config
 
 APPLICATION_NAME = "StmF1 Flasher Tool"
@@ -266,22 +267,30 @@ class InfoDisplays(Static):
 
 class StmApp(App):
 
-    # BINDINGS = [("d", "toggle_dark", "Toggle dark mode")]
+    ## Path to CSS - used mostly for layout
+    ## Try to use config variables for easier styling
     CSS_PATH = "./css/stmapp_css.css"
 
     ## keep track of expected input so we know
     ## when to pay attention to the input box
     awaiting = INPUT_TYPE_NONE
 
-    connected = False
+    ## Device model
     stm_device = STMInterface()
+
+    ## internal state variables
+    ## TODO: use less of these
+    connected = False
     conn_port = ""
     conn_baud = 9600
-
     read_len = 0
     offset = 0
     filepath = None
 
+    ## Default tables & widget definitions
+    conn_table = None
+    dev_table = None
+    chip_image = None
     default_conn_info = Table("", "", **clear_table_format)
 
     default_device_info = Panel(
@@ -297,8 +306,9 @@ class StmApp(App):
     msg_log = StringPutter(max_lines=8, name="msg_log", id="msg_log")
     input = StringGetter(placeholder=">>>")
 
+    ### initialise page info
     def build_items(self):
-        ## build the initial display items
+
         self.default_conn_info.add_row("", "")
         self.default_conn_info.add_row(
             "Connected    ",
@@ -389,6 +399,8 @@ class StmApp(App):
         self.build_items()
         super().__init__(driver_class, css_path, watch_css)
 
+    ### Widgets & tables updates
+
     def compose(self) -> ComposeResult:
         yield Header()
         yield self.banner
@@ -397,24 +409,19 @@ class StmApp(App):
         yield self.input
 
     def update_tables(self):
-        print("Updating tables")
         dev_info = self.get_widget_by_id("info")
         menu = self.get_widget_by_id("menu")
         opts = self.get_widget_by_id("opts")
 
         if self.connected:
-            dev_shortname = get_device_name_short(self.stm_device)
-            dens_shortname = get_device_dens_string(self.stm_device)
-
+            if self.chip_image == None:
+                self.chip = ChipImage(self.stm_device.device.name)
             dev_info.update(
                 Panel(
                     Group(
                         self.build_conn_table(),
                         self.build_device_table(),
-                        generateChipImage(
-                            dev_shortname,
-                            dens_shortname,
-                        ),
+                        self.chip.chip_image,
                     ),
                     **panel_format,
                 )
@@ -424,7 +431,9 @@ class StmApp(App):
                 Panel(
                     Group(
                         self.build_opts_table(),
-                    )
+                        generateFlashImage(self.stm_device.device.flash_page_num),
+                    ),
+                    **panel_format,
                 )
             )
         else:
@@ -470,6 +479,7 @@ class StmApp(App):
         opts_table = Table(
             "Option Byte", "Value", padding=(0, 1), expand=True, show_edge=False
         )
+        opts_table.add_row("", "")
         opts_table.add_row(
             "Read Protect",
             binary_colour(
@@ -548,9 +558,11 @@ class StmApp(App):
         device_table.add_row(
             "RAM Size      ", f"{hex(self.stm_device.device.ram.size)}"
         )
-        return Panel(
+        self.dev_table = Panel(
             device_table, title="[bold yellow]Device[/bold yellow]", **panel_format
         )
+
+        return self.dev_table
 
     def build_conn_table(self) -> Table:
         conn_table = Table("", "", **clear_table_format)
@@ -561,9 +573,12 @@ class StmApp(App):
         )
         conn_table.add_row("Port         ", self.conn_port)
         conn_table.add_row("Baud         ", str(self.conn_baud))
-        return Panel(
+        self.conn_table = Panel(
             conn_table, title="[bold yellow]Connection[/bold yellow]", **panel_format
         )
+        return self.conn_table
+
+    ### Key handlers
 
     def handle_connected(self):
         self.msg_log.write(SuccessMessage("Successfully connected!"))
@@ -621,11 +636,42 @@ class StmApp(App):
         print("Bye!")
         sys.exit()
 
-    def handle_key(self, key: str):
+    async def long_running_task(self):
+        self.msg_log.write(InfoMessage("Starting long-running task!"))
+        await asyncio.sleep(10)
+        self.msg_log.write(InfoMessage("Finished long-running task!"))
+
+    async def handle_key(self, key: str):
         ## do not accept new keys during
         ## operations (unless they're specifically requested)
-        if key == "p":
+        if key == "@":
             self.action_screenshot()
+
+        elif key == "l":
+            dev_info = self.get_widget_by_id("info")
+            task = asyncio.create_task(self.long_running_task)
+            while not task.done():
+                dev_info.update(
+                    Panel(
+                        Group(
+                            self.build_conn_table(),
+                            self.build_device_table(),
+                            next(self.chip),
+                        ),
+                        **panel_format,
+                    )
+                )
+                await asyncio.sleep(0.1)
+            dev_info.update(
+                Panel(
+                    Group(
+                        self.build_conn_table(),
+                        self.build_device_table(),
+                        self.chip.chip_image,
+                    ),
+                    **panel_format,
+                )
+            )
 
         if self.awaiting == INPUT_TYPE_NONE:
             selection = [item for item in self.menu_items if item["key"] == key][0]
@@ -633,8 +679,10 @@ class StmApp(App):
                 selection["action"]()
 
     async def _on_key(self, event: Key) -> None:
-        self.handle_key(event.char)
-        return await super()._on_key(event)
+        await super()._on_key(event)
+        await self.handle_key(event.char)
+
+    ### State machine
 
     async def app_state_machine(self, message):
         """app state machine
