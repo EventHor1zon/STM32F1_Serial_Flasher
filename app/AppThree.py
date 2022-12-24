@@ -12,6 +12,7 @@ sys.path.append("../SerialFlasher")
 from StmDevice import STMInterface
 
 import asyncio
+from time import sleep
 
 from rich.panel import Panel
 from rich.table import Table, Column, Row
@@ -290,7 +291,8 @@ class StmApp(App):
     ## Default tables & widget definitions
     conn_table = None
     dev_table = None
-    chip_image = None
+    chip_image = """"""
+    chip = None
     default_conn_info = Table("", "", **clear_table_format)
 
     default_device_info = Panel(
@@ -325,7 +327,12 @@ class StmApp(App):
                 "state": "any",
                 "action": self.handle_exit_keypress,
             },
-            {"key": config.KEY_VERS, "description": "Print Version", "state": "any"},
+            {
+                "key": config.KEY_VERS,
+                "description": "Print Version",
+                "state": "any",
+                "action": self.handle_vers_keypress,
+            },
             {
                 "key": config.KEY_PORT,
                 "description": "Set Port",
@@ -414,7 +421,7 @@ class StmApp(App):
         opts = self.get_widget_by_id("opts")
 
         if self.connected:
-            if self.chip_image == None:
+            if self.chip == None:
                 self.chip = ChipImage(self.stm_device.device.name)
             dev_info.update(
                 Panel(
@@ -603,12 +610,18 @@ class StmApp(App):
         finally:
             return success
 
-    def handle_port_keypress(self):
+    async def handle_vers_keypress(self):
+        self.msg_log.write(
+            InfoMessage(f"{APPLICATION_NAME} Version {APPLICATION_VERSION}")
+        )
+        self.awaiting = INPUT_TYPE_NONE
+
+    async def handle_port_keypress(self):
         self.msg_log.write(InfoMessage("Enter Port: "))
         self.awaiting = INPUT_TYPE_PORT
         self.set_focus(self.input)
 
-    def handle_connect_keypress(self):
+    async def handle_connect_keypress(self):
         if len(self.conn_port) == 0:
             self.msg_log.write(FailMessage("Must configure port first"))
             self.awaiting = INPUT_TYPE_PORT
@@ -618,28 +631,51 @@ class StmApp(App):
             if self.connected == True:
                 self.handle_connected()
 
-    def handle_baud_keypress(self):
+    async def handle_baud_keypress(self):
         self.awaiting = INPUT_TYPE_BAUD
         self.msg_log.write("Enter baud: ")
         self.set_focus(self.input)
 
-    def handle_readflash_keypress(self):
+    async def handle_readflash_keypress(self):
         self.awaiting = INPUT_TYPE_FLASH_OFFSET
         self.msg_log.write("Enter Offset from start")
         self.set_focus(self.input)
 
-    def handle_erase_keypress(self):
+    async def handle_erase_keypress(self):
         self.msg_log.write(InfoMessage("Erasing flash memory..."))
-        pass
 
     def handle_exit_keypress(self):
         print("Bye!")
         sys.exit()
 
-    async def long_running_task(self):
-        self.msg_log.write(InfoMessage("Starting long-running task!"))
-        await asyncio.sleep(10)
-        self.msg_log.write(InfoMessage("Finished long-running task!"))
+    async def execute(self, function):
+        await asyncio.get_running_loop().run_in_executor(None, lambda: function())
+
+    async def long_running_task(self, function):
+        dev_info = self.get_widget_by_id("info")
+        task = asyncio.create_task(self.execute(function))
+        while not task.done():
+            dev_info.update(
+                Panel(
+                    Group(
+                        self.build_conn_table(),
+                        self.build_device_table(),
+                        next(self.chip),
+                    ),
+                    **panel_format,
+                )
+            )
+            await asyncio.sleep(0.1)
+        dev_info.update(
+            Panel(
+                Group(
+                    self.build_conn_table(),
+                    self.build_device_table(),
+                    self.chip.chip_image,
+                ),
+                **panel_format,
+            )
+        )
 
     async def handle_key(self, key: str):
         ## do not accept new keys during
@@ -647,36 +683,10 @@ class StmApp(App):
         if key == "@":
             self.action_screenshot()
 
-        elif key == "l":
-            dev_info = self.get_widget_by_id("info")
-            task = asyncio.create_task(self.long_running_task)
-            while not task.done():
-                dev_info.update(
-                    Panel(
-                        Group(
-                            self.build_conn_table(),
-                            self.build_device_table(),
-                            next(self.chip),
-                        ),
-                        **panel_format,
-                    )
-                )
-                await asyncio.sleep(0.1)
-            dev_info.update(
-                Panel(
-                    Group(
-                        self.build_conn_table(),
-                        self.build_device_table(),
-                        self.chip.chip_image,
-                    ),
-                    **panel_format,
-                )
-            )
-
-        if self.awaiting == INPUT_TYPE_NONE:
+        elif self.awaiting == INPUT_TYPE_NONE:
             selection = [item for item in self.menu_items if item["key"] == key][0]
             if selection["action"] != None:
-                selection["action"]()
+                await selection["action"]()
 
     async def _on_key(self, event: Key) -> None:
         await super()._on_key(event)

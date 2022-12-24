@@ -6,6 +6,7 @@ from StmDevice import STMInterface
 from rich.text import Text
 
 CHIP_IMG_OFFSET = 12
+FLASH_IMG_OFFSET = 4
 CHIP_VALUE_WIDTH = 13
 CHIP_IMG_WIDTH = 15
 CHIP_IMG_HEIGHT = 8
@@ -34,9 +35,18 @@ FLASH_IMAGE = """
 """
 
 
-def generateFlashImage(num_pages):
+def generateFlashImage(
+    num_pages: int, start_addr: int = 0x20000000, end_addr: int = 0x20001FFF
+):
+    fa = start_addr
+    fe = end_addr
+    out = ""
     block = "▄ ▄ ▄ ▄ ▄ ▄ ▄ ▄\n"
-    return "" + (block * num_pages)
+    out += f"{' ' * FLASH_IMG_OFFSET}▄ ▄ ▄ ▄ ▄ ▄ ▄ ▄  {hex(fe)}\n"
+    out += (" " * FLASH_IMG_OFFSET + block) * (num_pages - 16)
+    out += f"{' ' * FLASH_IMG_OFFSET}▄ ▄ ▄ ▄ ▄ ▄ ▄ ▄  {hex(fa)}\n"
+
+    return out
 
 
 class ChipImage:
@@ -46,8 +56,9 @@ class ChipImage:
 
     def __init__(self, name: str, colour: str = "red"):
         self.colour = colour
-        self.dev_type = self.get_device_name_short(name)
-        self.density = self.get_device_dens_string(name)
+        self.name = name
+        self.dev_type = self.get_device_name_short()
+        self.density = self.get_device_dens_string()
         self.chip_image = self.generateChipImage()
 
     def __iter__(self):
@@ -97,8 +108,10 @@ class ChipImage:
         density = self.name.split("xxx")[1].split("Density")
         return density[0] + ("VAL" if len(density) > 1 and len(density[1]) > 1 else "")
 
-    def __next__(self):
+    def __next__(self, colour: str = None):
 
+        if colour is not None:
+            self.colour = colour
         lines = self.chip_image.split("\n")
         if self.step < 5:
             line = lines[0]
