@@ -4,6 +4,7 @@ from SerialFlasher.SerialFlasher import SerialTool
 from struct import unpack
 import sys
 
+
 def main():
     pass
 
@@ -17,9 +18,7 @@ if __name__ == "__main__":
         write_timeout=1.0,
     )
     serial.setDTR(False)
-    sf = SerialTool(
-        serial=serial
-    )
+    sf = SerialTool(serial=serial)
     sf.connect()
     success, rx = sf.cmdGetId()
 
@@ -36,32 +35,31 @@ if __name__ == "__main__":
     else:
         print("Activity failed")
 
-    success = sf.cmdReadoutUnprotect()
+    # success = sf.cmdReadoutUnprotect()
 
-    if success:
-        print("Success! Readout should now be allowed. Device will reset.")
-    else:
-        print("Failed to cmd Read Unprotect")
-        sys.exit(0)
+    # if success:
+    #     print("Success! Readout should now be allowed. Device will reset.")
+    # else:
+    #     print("Failed to cmd Read Unprotect")
+    #     sys.exit(0)
 
-    sleep(2)
-    print("Reconnecting...")
+    # sleep(2)
+    # print("Reconnecting...")
 
-    sf.connect()
+    # sf.connect()
 
+    # success = sf.cmdWriteUnprotect()
 
-    success = sf.cmdWriteUnprotect()
+    # if success:
+    #     print("Success! Write should now be allowed. Device will reset.")
+    # else:
+    #     print("Failed to cmd Write Unprotect")
+    #     sys.exit(0)
 
-    if success:
-        print("Success! Write should now be allowed. Device will reset.")
-    else:
-        print("Failed to cmd Write Unprotect")
-        sys.exit(0)
+    # sleep(2)
+    # print("Reconnecting...")
 
-    sleep(2)
-    print("Reconnecting...")
-
-    sf.connect()
+    # sf.connect()
 
     # success, rx = sf.cmdGetVersionProt()
 
@@ -70,19 +68,34 @@ if __name__ == "__main__":
     # else:
     #     print("Activity failed")
 
+    # success, rx = sf.cmdReadFromMemoryAddress(0x1FFFF800, 16)
+    # print(f"State {success}, rx {rx} {len(rx)}")
 
+    # fmt = ">16B"
 
-    success, rx = sf.cmdReadFromMemoryAddress(0x1FFFF800, 16)
-    print(f"State {success}, rx {rx} {len(rx)}")
+    # (
+    #     nUsr,
+    #     Usr,
+    #     nRdp,
+    #     Rdp,
+    #     nD1,
+    #     D1,
+    #     nD0,
+    #     D0,
+    #     nWrp1,
+    #     Wrp1,
+    #     nWrp0,
+    #     Wrp0,
+    #     nWrp3,
+    #     Wrp3,
+    #     nWrp2,
+    #     Wrp2,
+    # ) = unpack(fmt, rx)
 
-    fmt = ">16B"
-
-    nUsr, Usr, nRdp, Rdp, nD1, D1, nD0, D0, nWrp1, Wrp1, nWrp0, Wrp0, nWrp3, Wrp3, nWrp2, Wrp2 = unpack(fmt, rx)
-
-    print(f"{bin(Usr)}|{bin(nUsr)} - {Rdp}|{nRdp}")
-    print(f"{D1}|{nD1} - {D0}|{nD0}")
-    print(f"{Wrp1}|{nWrp1} - {Wrp0}|{nWrp0}")
-    print(f"{Wrp3}|{nWrp3} - {Wrp2}|{nWrp2}")
+    # print(f"{bin(Usr)}|{bin(nUsr)} - {Rdp}|{nRdp}")
+    # print(f"{D1}|{nD1} - {D0}|{nD0}")
+    # print(f"{Wrp1}|{nWrp1} - {Wrp0}|{nWrp0}")
+    # print(f"{Wrp3}|{nWrp3} - {Wrp2}|{nWrp2}")
 
     """
     90|165 - 0|255
@@ -96,13 +109,18 @@ if __name__ == "__main__":
     # d = unpack(fmt, rx)
     # print(f"State: {success} Data {d}")
 
-    success = sf.cmdWriteToMemoryAddress(0x20000800, bytearray([0x01, 0x02, 0x03, 0x04]))
+    success = sf.cmdWriteToMemoryAddress(0x8000000, bytearray([0x01, 0x02, 0x03, 0x04]))
 
     print(f"Write to RAM memory: {success}")
 
-    success, rx = sf.cmdReadFromMemoryAddress(0x20000800, 4)
+    success, rx = sf.cmdReadFromMemoryAddress(0x8000000, 4)
     print(f"State: {success} Data: {rx}")
 
+    success = sf.cmdEraseFlashMemory()
+    print(f"State: {success}")
+
+    success, rx = sf.cmdReadFromMemoryAddress(0x8000000, 4)
+    print(f"State: {success} Data: {rx}")
 
     # success = sf.cmdReadoutUnprotect()
 
@@ -125,5 +143,3 @@ if __name__ == "__main__":
     # print(f"{Wrp3}|{nWrp3} - {Wrp2}|{nWrp2}")
 
     sf.reset()
-
-    

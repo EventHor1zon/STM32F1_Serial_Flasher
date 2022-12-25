@@ -15,8 +15,8 @@ from time import sleep
 import sys
 from serial import Serial, SerialTimeoutException, SerialException, PARITY_EVEN
 import binascii
-from constants import *
-from errors import (
+from .constants import *
+from .errors import (
     InformationNotRetrieved,
     InvalidAddressError,
     InvalidReadLengthError,
@@ -27,7 +27,7 @@ from errors import (
     UnexpectedResponseError,
     InvalidEraseLengthError,
 )
-from utilities import getByteComplement
+from .utilities import getByteComplement
 
 ## SerialFlasher Class
 #   This class represents the object used to interface
@@ -105,17 +105,15 @@ from utilities import getByteComplement
 #
 
 
-
-
 class SerialTool:
     """
-        This class should:
-        - provide access to the underlying PySerial object
-        - send and receive bootloader commands
-        - provide functions to read/write data to memory addresses
-        - contain various utility functions for use in device commands
-        - handle handshake & initial serial connection
-        - return the bytearrays read from the device
+    This class should:
+    - provide access to the underlying PySerial object
+    - send and receive bootloader commands
+    - provide functions to read/write data to memory addresses
+    - contain various utility functions for use in device commands
+    - handle handshake & initial serial connection
+    - return the bytearrays read from the device
     """
 
     connected = False
@@ -135,7 +133,7 @@ class SerialTool:
         return data
 
     def addressToBytes(self, address):
-        """ return address as bytearray, MSB first """
+        """return address as bytearray, MSB first"""
         return bytearray(
             [
                 ((address >> 24) & 0xFF),
@@ -146,20 +144,20 @@ class SerialTool:
         )
 
     def reset(self):
-        """ remove this... """
+        """remove this..."""
         print("Resetting device via DTR pin")
         self.serial.setDTR(1)
         sleep(0.001)
         self.serial.setDTR(0)
 
     def __init__(self, port=None, baud: int = 9600, serial: Serial = None):
-        """ 
-            Init the serial flasher object
-                Either supply a serial object or a port/baud for the 
-                serial connection created
-            \param port - the Serial port to connect to 
-            \param baud - the baud rate to communicate at
-            \param serial - the serial object to use
+        """
+        Init the serial flasher object
+            Either supply a serial object or a port/baud for the
+            serial connection created
+        \param port - the Serial port to connect to
+        \param baud - the baud rate to communicate at
+        \param serial - the serial object to use
         """
 
         if serial is not None:
@@ -175,17 +173,16 @@ class SerialTool:
         self.serial.parity = PARITY_EVEN
         self.serial.setDTR(False)
 
-
     ##============ GETTERS/SETTERS ============##
 
     def getBaud(self):
-        """ return the baud rate of the serial object """
+        """return the baud rate of the serial object"""
         return self.baud
 
     def setBaud(self, baud: int):
-        """ 
-            set the baud rate of the serial object
-            cannot set once the device has connected
+        """
+        set the baud rate of the serial object
+        cannot set once the device has connected
         """
         if self.connected == True:
             return False
@@ -196,18 +193,18 @@ class SerialTool:
         return True
 
     def getPort(self):
-        """ 
-            returns the port connected to by the serial object
+        """
+        returns the port connected to by the serial object
         """
         return self.serial.port
 
     def setSerialReadWriteTimeout(self, timeout: float):
-        """ set timeout for read/write serial operations """
+        """set timeout for read/write serial operations"""
         self.serial.timeout = timeout
         self.serial.write_timeout = timeout
 
     def getSerialTimeout(self):
-        """ returns the serial object's timeout """
+        """returns the serial object's timeout"""
         return self.serial.timeout
 
     def getSerialState(self):
@@ -222,8 +219,8 @@ class SerialTool:
 
     def writeDevice(self, data: bytearray) -> bool:
         """! write data to the device
-            @param data to send
-            @return True on success
+        @param data to send
+        @return True on success
         """
         tx = self.serial.write(data)
         if tx != len(data):
@@ -232,16 +229,16 @@ class SerialTool:
 
     def readDevice(self, length) -> tuple:
         """! attempt to read len bytes from the device
-            @param length  Bytes to read
-            @return Tuple(success, data)
+        @param length  Bytes to read
+        @return Tuple(success, data)
         """
         rx = self.serial.read(length)
         return (len(rx) == length), rx
 
     def writeAndWaitAck(self, data: bytearray) -> bool:
         """! sends data to device and waits for ack
-            @param data - bytearray of data to send
-            @return True on success or False
+        @param data - bytearray of data to send
+        @return True on success or False
         """
         success = self.writeDevice(data)
         if success:
@@ -250,8 +247,8 @@ class SerialTool:
 
     def waitForAck(self, timeout: float = 1.0) -> bool:
         """! Wait for an ack byte from the device
-            @param timeout Time to wait for the ack byte
-            @return True - ACK False - NACK
+        @param timeout Time to wait for the ack byte
+        @return True - ACK False - NACK
         """
         if self.serial.timeout == None or self.serial.write_timeout == None:
             self.setSerialReadWriteTimeout(timeout)
@@ -263,14 +260,15 @@ class SerialTool:
         elif STM_CMD_NACK in rx:
             return False
         else:
-            raise UnexpectedResponseError(f"Invalid response byte received: {hex(rx[0])}")
-            
+            raise UnexpectedResponseError(
+                f"Invalid response byte received: {hex(rx[0])}"
+            )
 
     ##============== Device Interaction =========##
 
     def connect(self):
-        """! connect to the STM chip bootloader by sending the 
-             handshake byte
+        """! connect to the STM chip bootloader by sending the
+        handshake byte
         """
         success = self.writeAndWaitAck(bytearray([STM_CMD_HANDSHAKE]))
         if success:
@@ -278,8 +276,7 @@ class SerialTool:
         return success
 
     def disconnect(self):
-        """! close the serial socket
-        """
+        """! close the serial socket"""
         self.serial.close()
         self.connected = False
 
@@ -290,18 +287,18 @@ class SerialTool:
         return self.connect()
 
     ##=============== DEVICE COMMANDS ==========##
-    
+
     def writeCommand(self, data: bytearray, length: int):
-        """! write a command byte, check ack and get a response 
-             starting with number of bytes
-            @param data     bytearray of data to send
-            @param length   expected number of bytes in rsp
-            @return True on success
+        """! write a command byte, check ack and get a response
+         starting with number of bytes
+        @param data     bytearray of data to send
+        @param length   expected number of bytes in rsp
+        @return True on success
         """
         rx = bytearray()
 
         success = self.writeAndWaitAck(data)
-    
+
         if success:
             # read the response length byte
             success, rx = self.readDevice(STM32_RSP_LEN_BYTE)
@@ -315,36 +312,40 @@ class SerialTool:
 
         if success:
             success, rx = self.readDevice(length)
-        
+
         if success:
             success = self.waitForAck()
-        
+
         return success, rx
 
-
     def cmdGetId(self):
-        """! send the getId Command 
+        """! send the getId Command
 
-            @return tuple (Success, raw data bytes)
+        @return tuple (Success, raw data bytes)
         """
         id_command = bytearray([STM_CMD_GET_ID, getByteComplement(STM_CMD_GET_ID)])
         return self.writeCommand(id_command, STM_GET_ID_RSP_LEN)
 
     def cmdGetInfo(self):
-        """! get the device information 
+        """! get the device information
 
-            @return tuple (Success, raw data bytes)
+        @return tuple (Success, raw data bytes)
         """
-        get_commands = bytearray([STM_CMD_GET, getByteComplement(STM_CMD_GET),])
+        get_commands = bytearray(
+            [
+                STM_CMD_GET,
+                getByteComplement(STM_CMD_GET),
+            ]
+        )
         return self.writeCommand(get_commands, STM_RSP_GET_LEN)
 
     def cmdGetVersionProt(self):
-        """ !get the device's bootloader protocol version
-            this command is structured differently, presumably for backwards
-            compatibility. Likely better to use the GetInfo command unless the 
-            option(al?) bytes are specifically required
+        """!get the device's bootloader protocol version
+        this command is structured differently, presumably for backwards
+        compatibility. Likely better to use the GetInfo command unless the
+        option(al?) bytes are specifically required
 
-            @return tuple (Success, raw data bytes)
+        @return tuple (Success, raw data bytes)
         """
         rx = bytearray()
 
@@ -365,31 +366,37 @@ class SerialTool:
         return success, rx
 
     def cmdReadFromMemoryAddress(self, address: int, length: int):
-        """ ! Send read command to read length bytes from address
-            @param address  address to read from
-            @param length   Number of bytes to read
-            @return True on success
+        """! Send read command to read length bytes from address
+        @param address  address to read from
+        @param length   Number of bytes to read
+        @return True on success
         """
 
         # check read length
         if length > 255 or length < 1:
-            raise InvalidReadLengthError(
-                "Read length must be > 0 and < 256 bytes"
-            )
+            raise InvalidReadLengthError("Read length must be > 0 and < 256 bytes")
 
         # read command bytes
         commands = bytearray(
-            [STM_CMD_READ_MEM, getByteComplement(STM_CMD_READ_MEM),]
+            [
+                STM_CMD_READ_MEM,
+                getByteComplement(STM_CMD_READ_MEM),
+            ]
         )
 
         # initialise rx as empty bytearray
-        rx = bytearray() 
+        rx = bytearray()
 
         # address bytes
         address_bytes = self.addressToBytes(address)
         address_bytes = self.appendChecksum(address_bytes)
         # length bytes
-        length_bytes = bytearray([length-1, getByteComplement(length-1),])
+        length_bytes = bytearray(
+            [
+                length - 1,
+                getByteComplement(length - 1),
+            ]
+        )
 
         # write the command, address & length to the device
         success = self.writeAndWaitAck(commands)
@@ -405,30 +412,32 @@ class SerialTool:
 
         return success, rx
 
-
     def cmdWriteToMemoryAddress(self, address: int, data: bytearray):
-        """! write data to a memory address. Data must be a multiple of 
-                4 bytes in length 
-            @param address
-            @param data
-            @return True on Success
+        """! write data to a memory address. Data must be a multiple of
+            4 bytes in length
+        @param address
+        @param data
+        @return True on Success
         """
         if len(data) > 256 or len(data) < 1:
             raise InvalidWriteLengthError(f"Invalid length: {len(data)}")
-        
+
         if len(data) % 4 > 0:
             raise InvalidWriteLengthError("Must be a multiple of 4 bytes")
 
         commands = bytearray(
-            [STM_CMD_WRITE_MEM, getByteComplement(STM_CMD_WRITE_MEM),]
+            [
+                STM_CMD_WRITE_MEM,
+                getByteComplement(STM_CMD_WRITE_MEM),
+            ]
         )
-        
+
         # address bytes
         address_bytes = self.addressToBytes(address)
         address_bytes = self.appendChecksum(address_bytes)
-        
+
         # write the length (N) and N+1 (????) data bytes and Checksum^N
-        tx_data = bytearray([len(data)-1])
+        tx_data = bytearray([len(data) - 1])
         tx_data += data
         tx_data = self.appendChecksum(tx_data)
 
@@ -447,24 +456,27 @@ class SerialTool:
 
         return success
 
-
     def cmdEraseFlashMemoryPages(self, pages: bytearray):
-        """ !send the flash erase command to erase certain pages,
-            specified by index in pages variable
-            @param pages    bytearray of page indexes to erase
-            @return         True on success
+        """!send the flash erase command to erase certain pages,
+        specified by index in pages variable
+        @param pages    bytearray of page indexes to erase
+        @return         True on success
         """
         if len(pages) < 1 or len(pages) > 256:
             raise InvalidEraseLengthError
 
-        commands = bytearray([
-            STM_CMD_ERASE_MEM,
-            getByteComplement(STM_CMD_ERASE_MEM),
-        ])
+        commands = bytearray(
+            [
+                STM_CMD_ERASE_MEM,
+                getByteComplement(STM_CMD_ERASE_MEM),
+            ]
+        )
 
-        tx_data = bytearray([
-            len(pages)-1,
-        ])
+        tx_data = bytearray(
+            [
+                len(pages) - 1,
+            ]
+        )
         tx_data += pages
         tx_data = self.appendChecksum(tx_data)
 
@@ -476,44 +488,52 @@ class SerialTool:
         return success
 
     def cmdEraseFlashMemory(self):
-        """! send the flash erase all pages command 
-            @return True on success
+        """! send the flash erase all pages command
+        @return True on success
         """
 
-        commands = bytearray([
-            STM_CMD_ERASE_MEM,
-            getByteComplement(STM_CMD_ERASE_MEM),
-        ])
+        commands = bytearray(
+            [
+                STM_CMD_ERASE_MEM,
+                getByteComplement(STM_CMD_ERASE_MEM),
+            ]
+        )
 
-        tx_data = bytearray([
-            0xFF,
-        ])
+        tx_data = bytearray(
+            [
+                0xFF,
+                getByteComplement(0xFF),
+            ]
+        )
 
         success = self.writeAndWaitAck(commands)
 
         if success:
             success = self.writeAndWaitAck(tx_data)
-        
-        return success
 
+        return success
 
     def cmdWriteProtect(self, sectors: bytearray):
         """! send the bootloader command to write-protect the flash
-            memory. This command resets the device, disconnecting it.
-            @param sectors bytearray of sectors to protect
-            @return True on success
+        memory. This command resets the device, disconnecting it.
+        @param sectors bytearray of sectors to protect
+        @return True on success
         """
         if len(sectors) < 1 or len(sectors) > 256:
-            raise InvalidWriteLengthError("Invalid sector length") 
+            raise InvalidWriteLengthError("Invalid sector length")
 
-        commands = bytearray([
-            STM_CMD_WRITE_PROTECT_EN,
-            getByteComplement(STM_CMD_WRITE_PROTECT_EN),
-        ])
+        commands = bytearray(
+            [
+                STM_CMD_WRITE_PROTECT_EN,
+                getByteComplement(STM_CMD_WRITE_PROTECT_EN),
+            ]
+        )
 
-        tx_data = bytearray([
-            len(sectors)-1,
-        ])
+        tx_data = bytearray(
+            [
+                len(sectors) - 1,
+            ]
+        )
         tx_data += sectors
         tx_data = self.appendChecksum(tx_data)
 
@@ -521,8 +541,8 @@ class SerialTool:
 
         if success:
             success = self.writeAndWaitAck(tx_data)
-        
-        ## once the write protect command is complete, the device 
+
+        ## once the write protect command is complete, the device
         ## resets, so set connected to false
         if success:
             self.connected = False
@@ -531,44 +551,50 @@ class SerialTool:
 
     def cmdWriteUnprotect(self):
         """! send the command to unprotect flash from write
-            @return True on success
-         """
-        commands = bytearray([
-            STM_CMD_WRITE_PROTECT_DIS,
-            getByteComplement(STM_CMD_WRITE_PROTECT_DIS),
-        ])
+        @return True on success
+        """
+        commands = bytearray(
+            [
+                STM_CMD_WRITE_PROTECT_DIS,
+                getByteComplement(STM_CMD_WRITE_PROTECT_DIS),
+            ]
+        )
 
         first_ack = self.writeAndWaitAck(commands)
 
         second_ack = self.waitForAck()
         self.connected = False
 
-        return (first_ack & second_ack)
+        return first_ack & second_ack
 
     def cmdReadoutProtect(self):
         """! send the command to protect flash from read
-            @return True on success
-         """
-        commands = bytearray([
-            STM_CMD_READOUT_PROTECT_EN,
-            getByteComplement(STM_CMD_READOUT_PROTECT_EN),
-        ])
+        @return True on success
+        """
+        commands = bytearray(
+            [
+                STM_CMD_READOUT_PROTECT_EN,
+                getByteComplement(STM_CMD_READOUT_PROTECT_EN),
+            ]
+        )
 
         first_ack = self.writeAndWaitAck(commands)
 
         second_ack = self.waitForAck()
         self.connected = False
 
-        return (first_ack & second_ack)
+        return first_ack & second_ack
 
     def cmdReadoutUnprotect(self):
         """! send the command to unprotect flash from read
-            @return True on success
-         """
-        commands = bytearray([
-            STM_CMD_READOUT_PROTECT_DIS,
-            getByteComplement(STM_CMD_READOUT_PROTECT_DIS),
-        ])
+        @return True on success
+        """
+        commands = bytearray(
+            [
+                STM_CMD_READOUT_PROTECT_DIS,
+                getByteComplement(STM_CMD_READOUT_PROTECT_DIS),
+            ]
+        )
 
         success = self.writeDevice(commands)
 
@@ -577,19 +603,20 @@ class SerialTool:
             second_ack = self.waitForAck(timeout=0.5)
         self.connected = False
 
-        return (first_ack & second_ack)
-
+        return first_ack & second_ack
 
     def cmdGoToAddress(self, address):
         """! send the command to Go To an address and execute
-             note - read protection should be disabled
-            @param address  The address to go to
-            @return True on success
-         """
-        commands = bytearray([
-            STM_CMD_GO,
-            getByteComplement(STM_CMD_GO),
-        ])
+         note - read protection should be disabled
+        @param address  The address to go to
+        @return True on success
+        """
+        commands = bytearray(
+            [
+                STM_CMD_GO,
+                getByteComplement(STM_CMD_GO),
+            ]
+        )
 
         address_bytes = self.addressToBytes(address)
         address_bytes = self.appendChecksum(address_bytes)
@@ -603,4 +630,3 @@ class SerialTool:
         self.connected = False
 
         return success
-
