@@ -316,3 +316,39 @@ class STMInterface:
             )
 
         return success
+
+    def isFlashWriteProtected(self):
+        if not self.connected:
+            raise DeviceNotConnectedError
+        if not self.device:
+            raise InformationNotRetrieved
+        if self.device.opt_bytes == None:
+            raise InformationNotRetrieved
+        write_prot = False
+        if (
+            self.device.opt_bytes.write_protect_0 == 0
+            and self.device.opt_bytes.write_protect_1 == 0
+            and self.device.opt_bytes.write_protect_2 == 0
+            and self.device.opt_bytes.write_protect_3 == 0
+        ):
+            return True
+        else:
+            return False
+
+    def isFlashWriteProtected(self):
+        if not self.connected:
+            raise DeviceNotConnectedError
+        if not self.device:
+            raise InformationNotRetrieved
+        if self.device.opt_bytes == None:
+            raise InformationNotRetrieved
+        write_prot = False
+        if (
+            self.device.opt_bytes.write_protect_0 == 0
+            and self.device.opt_bytes.write_protect_1 == 0
+            and self.device.opt_bytes.write_protect_2 == 0
+            and self.device.opt_bytes.write_protect_3 == 0
+        ):
+            return True
+        else:
+            return False

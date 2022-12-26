@@ -28,15 +28,10 @@ from textual.message import Message
 from textual.reactive import reactive
 from textual.containers import Container
 from textual.widgets import (
-    Button,
     Header,
-    Footer,
     Static,
     TextLog,
-    DataTable,
     Input,
-    Label,
-    Placeholder,
 )
 
 from chip_image import ChipImage, generateFlashImage
@@ -95,7 +90,7 @@ STATE_AWAITING_INPUT_FLASH_READ_FILEPATH = 4
 STATE_AWAITING_INPUT_FLASH_OFFSET = 5
 STATE_AWAITING_INPUT_FLASH_SZ = 6
 STATE_AWAITING_INPUT_APP_LOAD_FILEPATH = 7
-STATE_AWAITING_INPUT_ANY = 255
+STATE_ANY = 255
 
 menu_template = f"""
 [green]Actions[/green]
@@ -322,75 +317,93 @@ class StmApp(App):
         self.default_conn_info.add_row("Baud         ", f"{self.conn_baud}")
 
         ## build the keypress menu items
-        self.menu_items = [
-            {
-                "key": config.KEY_EXIT,
-                "description": "Exit",
-                "state": "any",
-                "action": self.handle_exit_keypress,
-            },
-            {
-                "key": config.KEY_VERS,
-                "description": "Print Version",
-                "state": "any",
-                "action": self.handle_vers_keypress,
-            },
+        self.dc_menu_items = [
             {
                 "key": config.KEY_PORT,
                 "description": "Set Port",
-                "state": "disconnected",
+                "state": STATE_IDLE_DISCONNECTED,
                 "action": self.handle_port_keypress,
             },
             {
                 "key": config.KEY_BAUD,
                 "description": "Set Baud",
-                "state": "disconnected",
+                "state": STATE_IDLE_DISCONNECTED,
                 "action": self.handle_baud_keypress,
             },
             {
                 "key": config.KEY_CONN,
                 "description": "Connect",
-                "state": "disconnected",
+                "state": STATE_IDLE_DISCONNECTED,
                 "action": self.handle_connect_keypress,
             },
+        ]
+
+        self.any_menu_items = [
+            {
+                "key": config.KEY_EXIT,
+                "description": "Exit",
+                "state": STATE_ANY,
+                "action": self.handle_exit_keypress,
+            },
+            {
+                "key": config.KEY_VERS,
+                "description": "Print Version",
+                "state": STATE_ANY,
+                "action": self.handle_vers_keypress,
+            },
+        ]
+
+        self.upload_menu_items = [
+            "key": config.KEY_FILE,
+            "description": "set file path",
+            "action": None,
+        ]
+
+
+        self.con_menu_items = [
             {
                 "key": config.KEY_RDRM,
                 "description": "Read RAM to file",
-                "state": "connected",
+                "state": STATE_IDLE_CONNECTED,
                 "action": None,
             },
             {
                 "key": config.KEY_WRRM,
                 "description": "Write file data to ram",
-                "state": "connected",
+                "state": STATE_IDLE_CONNECTED,
                 "action": None,
             },
             {
                 "key": config.KEY_UPLD,
                 "description": "Upload application to flash",
-                "state": "connected",
+                "state": STATE_IDLE_CONNECTED,
                 "action": None,
             },
             {
                 "key": config.KEY_ERFS,
                 "description": "Erase all flash",
-                "state": "connected",
+                "state": STATE_IDLE_CONNECTED,
                 "action": self.handle_erase_keypress,
             },
             {
                 "key": config.KEY_RDFS,
                 "description": "Read flash memory",
-                "state": "connected",
+                "state": STATE_IDLE_CONNECTED,
                 "action": self.handle_readflash_keypress,
             },
             {
                 "key": config.KEY_DCON,
                 "description": "Disconnect from device",
-                "state": "connected",
+                "state": STATE_IDLE_CONNECTED,
                 "action": None,
             },
+            {
+                "key": config.KEY_RDPAGES,
+                "description": "Read flash pages",
+                "state": STATE_IDLE_CONNECTED,
+                "action": self.handle_readpages_keypress,
+            },
         ]
-
         ## there's probably a more elegent way of doing this but it works
         self.main_display = InfoDisplays(
             menu=self.build_menu(),
@@ -463,16 +476,15 @@ class StmApp(App):
 
     def build_menu(self):
         menu = menu_template
-        self_state = "disconnected" if not self.connected else "connected"
         opts = [
             item
             for item in self.menu_items
-            if item["state"] == self_state or item["state"] == "any"
+            if item["state"] == self.state or item["state"] == STATE_ANY
         ]
         for opt in opts:
             menu += (
                 f"[bold]{opt['key']}[/bold]: {opt['description']}\n"
-                if opt["state"] == self_state
+                if opt["state"] == self.state
                 else ""
             )
 
@@ -480,7 +492,7 @@ class StmApp(App):
         for opt in opts:
             menu += (
                 f"[bold]{opt['key']}[/bold]: {opt['description']}\n"
-                if opt["state"] == "any"
+                if opt["state"] == STATE_ANY
                 else ""
             )
 
@@ -667,18 +679,56 @@ class StmApp(App):
         await self.long_running_task(self.stm_device.globalEraseFlash)
         self.msg_log.write(SuccessMessage("Succesfully erased all flash pages"))
 
+    async def handle_readpages_keypress(self):
+        self.msg_log.write(InfoMessage("Reading flash pages..."))
+        occupied = 0
+        empty = 0
+        errors = 0
+
+        for i in range(self.stm_device.device.flash_page_num):
+            self.msg_log.write(InfoMessage(f"Reading flash pages {i}"))
+            success, rx = await self.long_running_task(
+                self.stm_device.readFromFlash,
+                self.stm_device.device.flash_pages[i].start,
+                self.stm_device.device.flash_page_num,
+            )
+            if not success:
+                self.msg_log.write(FailMessage(f"Error reading flash page {i}"))
+                errors += 1
+            else:
+                page_empty = True
+                for b in rx:
+                    if b != 0xFF:
+                        page_empty = False
+                        occupied += 1
+                        break
+                if page_empty == True:
+                    empty += 1
+
+        self.msg_log.write(
+            InfoMessage(
+                f"Read {self.stm_device.device.flash_page_num} pages (errors: {errors})"
+            )
+        )
+        self.msg_log.write(
+            InfoMessage(f"Page status-> Occupied pages: {occupied} Free pages: {empty}")
+        )
+
+    async def handle_upload_keypress(self):
+        pass
+
     def handle_exit_keypress(self):
         print("Bye!")
         sys.exit()
 
-    async def execute(self, function):
-        result = await asyncio.get_running_loop().run_in_executor(
-            None, lambda: function()
+    async def execute(self, function, *func_args):
+        return await asyncio.get_running_loop().run_in_executor(
+            None, lambda: function(*func_args)
         )
 
-    async def long_running_task(self, function):
+    async def long_running_task(self, function, *func_args):
         dev_info = self.get_widget_by_id("info")
-        task = asyncio.create_task(self.execute(function))
+        task = asyncio.get_running_loop().run_in_executor(None, function, *func_args)
         while not task.done():
             dev_info.update(
                 Panel(
@@ -701,6 +751,7 @@ class StmApp(App):
                 **panel_format,
             )
         )
+        return task.result()
 
     async def handle_key(self, key: str):
         ## do not accept new keys during
@@ -710,10 +761,13 @@ class StmApp(App):
         if key == "@":
             self.action_screenshot()
 
+        if key == "l":
+            await self.long_running_task(sleep, 5)
+
         for command in self.menu_items:
             if (
                 key == command["key"]
-                and (command["state"] == conn_state or command["state"] == "any")
+                and (command["state"] == self.state or command["state"] == STATE_ANY)
                 and command["action"] is not None
             ):
                 await command["action"]()

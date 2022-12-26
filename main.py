@@ -1,6 +1,7 @@
 from time import sleep
 from serial import Serial, SerialTimeoutException, SerialException, PARITY_EVEN
 from SerialFlasher.SerialFlasher import SerialTool
+from SerialFlasher.devices import OptionBytes
 from struct import unpack
 import sys
 
@@ -48,18 +49,18 @@ if __name__ == "__main__":
 
     # sf.connect()
 
-    # success = sf.cmdWriteUnprotect()
+    success = sf.cmdWriteUnprotect()
 
-    # if success:
-    #     print("Success! Write should now be allowed. Device will reset.")
-    # else:
-    #     print("Failed to cmd Write Unprotect")
-    #     sys.exit(0)
+    if success:
+        print("Success! Write should now be allowed. Device will reset.")
+    else:
+        print("Failed to cmd Write Unprotect")
+        sys.exit(0)
 
-    # sleep(2)
-    # print("Reconnecting...")
+    sleep(2)
+    print("Reconnecting...")
 
-    # sf.connect()
+    sf.connect()
 
     # success, rx = sf.cmdGetVersionProt()
 
@@ -68,8 +69,12 @@ if __name__ == "__main__":
     # else:
     #     print("Activity failed")
 
-    # success, rx = sf.cmdReadFromMemoryAddress(0x1FFFF800, 16)
-    # print(f"State {success}, rx {rx} {len(rx)}")
+    success, rx = sf.cmdReadFromMemoryAddress(0x1FFFF800, 16)
+    print(f"State {success}, rx {rx} {len(rx)}")
+
+    opts = OptionBytes.FromBytes(rx)
+
+    opts.dumpOptionBytes()
 
     # fmt = ">16B"
 
@@ -109,18 +114,34 @@ if __name__ == "__main__":
     # d = unpack(fmt, rx)
     # print(f"State: {success} Data {d}")
 
-    success = sf.cmdWriteToMemoryAddress(0x8000000, bytearray([0x01, 0x02, 0x03, 0x04]))
+    # success = sf.cmdWriteToMemoryAddress(
+    #     0x08000000, bytearray([0x01, 0x02, 0x03, 0x04])
+    # )
 
-    print(f"Write to RAM memory: {success}")
+    # print(f"Write to flash memory: {success}")
 
-    success, rx = sf.cmdReadFromMemoryAddress(0x8000000, 4)
-    print(f"State: {success} Data: {rx}")
+    # success, rx = sf.cmdReadFromMemoryAddress(0x08000000, 4)
+    # print(f"State: {success} Data: {rx}")
 
-    success = sf.cmdEraseFlashMemory()
-    print(f"State: {success}")
+    # success = sf.cmdWriteToMemoryAddress(
+    #     0x08000400, bytearray([0x41, 0x42, 0x43, 0x44])
+    # )
 
-    success, rx = sf.cmdReadFromMemoryAddress(0x8000000, 4)
-    print(f"State: {success} Data: {rx}")
+    # print(f"2nd Write to flash memory: {success}")
+
+    # success, rx = sf.cmdReadFromMemoryAddress(0x08004000, 4)
+    # print(f"State: {success} Data: {rx}")
+
+    # success = sf.cmdEraseFlashMemoryPages(bytearray([0, 1, 2]))
+    # print(f"State: {success}")
+
+    # sleep(3)
+
+    # success, rx = sf.cmdReadFromMemoryAddress(0x08000000, 4)
+    # print(f"State: {success} Data: {rx}")
+
+    # success, rx = sf.cmdReadFromMemoryAddress(0x08004000, 4)
+    # print(f"State: {success} Data: {rx}")
 
     # success = sf.cmdReadoutUnprotect()
 

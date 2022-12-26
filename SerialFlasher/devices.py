@@ -4,7 +4,7 @@ from enum import Enum
 from dataclasses import dataclass
 from collections import namedtuple
 from errors import DeviceNotSupportedError
-from utilities import (getByteComplement, setBit, clearBit)
+from utilities import getByteComplement, setBit, clearBit
 
 STM32_F1_FLASH_KEYS = {
     "RDPRT_KEY": 0x00A5,
@@ -12,7 +12,7 @@ STM32_F1_FLASH_KEYS = {
     "KEY_2": 0xCDEF89AB,
 }
 
-#! FlashOptionBytes: named tuple used for unpacking 
+#! FlashOptionBytes: named tuple used for unpacking
 #  optionbytes register contents
 FlashOptionBytes = namedtuple(
     "FlashOptionBytes",
@@ -46,7 +46,7 @@ class Register:
 
 @dataclass
 class Peripheral:
-    """ describes a peripheral on the device """
+    """describes a peripheral on the device"""
 
     name: str
     start: int
@@ -59,9 +59,9 @@ class Peripheral:
 
 @dataclass
 class PeripheralRegister:
-    """ describes a Peripheral register
-        Offset from peripheral start address
-        and value at reset
+    """describes a Peripheral register
+    Offset from peripheral start address
+    and value at reset
     """
 
     peripheral: Peripheral
@@ -71,7 +71,7 @@ class PeripheralRegister:
 
 @dataclass
 class Region:
-    """ describes a region of memory space on the device """
+    """describes a region of memory space on the device"""
 
     name: str
     start: int
@@ -82,7 +82,7 @@ class Region:
         return self.end - self.start
 
     def is_valid(self, address: int):
-        """ return True if address is in range start -> end """
+        """return True if address is in range start -> end"""
         return address >= self.start and address < self.end
 
 
@@ -101,11 +101,11 @@ class DeviceDensity(Enum):
 
 
 class OptionBytes:
-    """ enough fucking about with tuples
-        make a proper class with functionality 
-        and stuff. This might have got out of control. 
-        But it's almost worth it
-        if only for the practice
+    """enough fucking about with tuples
+    make a proper class with functionality
+    and stuff. This might have got out of control.
+    But it's almost worth it
+    if only for the practice
     """
 
     user: int = 0x00
@@ -120,7 +120,6 @@ class OptionBytes:
     write_protect_1: int = 0x00
     write_protect_2: int = 0x00
     write_protect_3: int = 0x00
-
 
     def __init__(self):
         pass
@@ -157,13 +156,13 @@ class OptionBytes:
     @classmethod
     def FromBytes(cls, data: bytearray):
         """! Create an OptionBytes object from a bytearray of data
-            @param data the bytearray - must be 16 bytes long. Will raise
-                        unpack error if data is badly formatted
+        @param data the bytearray - must be 16 bytes long. Will raise
+                    unpack error if data is badly formatted
         """
         self = OptionBytes()
         fob = FlashOptionBytes._make(unpack(">16B", data))
         self.read_protect = fob.readProt
-        self.watchdog_type = (fob.user & 0b1)
+        self.watchdog_type = fob.user & 0b1
         self.reset_on_stop = 0 if ((fob.user >> 1) & 0b1) else 1
         self.reset_on_standby = 0 if ((fob.user >> 2) & 0b1) else 1
         self.user = fob.user
@@ -178,11 +177,18 @@ class OptionBytes:
 
     def generateUserByte(self):
         userbyte = 0x00
-        userbyte = setBit(userbyte, 0) if self.watchdog_type > 0 else clearBit(userbyte, 0)
-        userbyte = setBit(userbyte, 1) if not self.reset_on_stop > 0 else clearBit(userbyte, 1)
-        userbyte = setBit(userbyte, 2) if not self.reset_on_standby > 0 else clearBit(userbyte, 2)
+        userbyte = (
+            setBit(userbyte, 0) if self.watchdog_type > 0 else clearBit(userbyte, 0)
+        )
+        userbyte = (
+            setBit(userbyte, 1) if not self.reset_on_stop > 0 else clearBit(userbyte, 1)
+        )
+        userbyte = (
+            setBit(userbyte, 2)
+            if not self.reset_on_standby > 0
+            else clearBit(userbyte, 2)
+        )
         return userbyte
-
 
     def toBytes(self):
         fob = FlashOptionBytes(
@@ -216,16 +222,15 @@ class OptionBytes:
 
     @property
     def watchdogType(self):
-        """! get watchdog type from option bytes
-         """
+        """! get watchdog type from option bytes"""
         return self.watchdog_type
 
     @watchdogType.setter
     def watchdogType(self, wdType: bool):
         """! setter for the watchdog type
-            update the user byte too 
-            @param type - False - Hardware Watchdog
-                          True - Software watchdog
+        update the user byte too
+        @param type - False - Hardware Watchdog
+                      True - Software watchdog
         """
         self.watchdog_type = int(wdType)
         self.user = self.generateUserByte()
@@ -233,8 +238,7 @@ class OptionBytes:
 
     @property
     def resetOnStop(self):
-        """! get reset on stop setting
-         """
+        """! get reset on stop setting"""
         return self.reset_on_stop
 
     @resetOnStop.setter
@@ -245,7 +249,7 @@ class OptionBytes:
 
     @property
     def resetOnStandby(self):
-        """! get reset on standby setting """
+        """! get reset on standby setting"""
         return self.reset_on_standby
 
     @resetOnStandby.setter
@@ -261,7 +265,7 @@ class OptionBytes:
     @dataByte0.setter
     def dataByte0(self, data: int):
         """! set the data 0 byte - only the first byte is valid
-            @param data value to load (0x00 - 0xFF)
+        @param data value to load (0x00 - 0xFF)
         """
         self.data_byte_0 = data & 0xFF
         self.updateRawBytes()
@@ -273,18 +277,18 @@ class OptionBytes:
     @dataByte1.setter
     def dataByte1(self, data: int):
         """! set the data 0 byte - only the first byte is valid
-            @param data value to load (0x00 - 0xFF)
+        @param data value to load (0x00 - 0xFF)
         """
         self.data_byte_1 = data & 0xFF
         self.updateRawBytes()
-    
+
     @property
     def readProtect(self) -> bool:
         return False if self.read_protect == 0xA5 else True
-    
+
     @readProtect.setter
     def readProtect(self, enabled: bool):
-        if enabled: 
+        if enabled:
             self.read_protect = 0
         else:
             self.read_protect = 0xA5
@@ -293,7 +297,7 @@ class OptionBytes:
     @property
     def writeProtect0(self):
         return self.write_protect_0
-    
+
     @writeProtect0.setter
     def writeProtect0(self, data: int):
         self.write_protect_0 = data & 0xFF
@@ -302,7 +306,7 @@ class OptionBytes:
     @property
     def writeProtect1(self):
         return self.write_protect_1
-    
+
     @writeProtect1.setter
     def writeProtect1(self, data: int):
         self.write_protect_1 = data & 0xFF
@@ -311,7 +315,7 @@ class OptionBytes:
     @property
     def writeProtect2(self):
         return self.write_protect_2
-    
+
     @writeProtect2.setter
     def writeProtect2(self, data: int):
         self.write_protect_2 = data & 0xFF
@@ -320,10 +324,24 @@ class OptionBytes:
     @property
     def writeProtect3(self):
         return self.write_protect_3
-    
+
     @writeProtect3.setter
     def writeProtect3(self, data: int):
         self.write_protect_3 = data & 0xFF
+        self.updateRawBytes()
+
+    def enableWriteProtect(self):
+        self.write_protect_0 = 0
+        self.write_protect_1 = 0
+        self.write_protect_2 = 0
+        self.write_protect_3 = 0
+        self.updateRawBytes()
+
+    def disableWriteProtect(self):
+        self.write_protect_0 = 0xFF
+        self.write_protect_1 = 0xFF
+        self.write_protect_2 = 0xFF
+        self.write_protect_3 = 0xFF
         self.updateRawBytes()
 
     def dumpOptionBytes(self):
@@ -420,6 +438,17 @@ class DeviceType:
             (0x08000000 + (self.flash_page_num * self.flash_page_size)),
         )
 
+        self.flash_pages = []
+        for i in range(self.flash_page_num):
+            self.flash_pages.append(
+                Region(
+                    f"flash_page_{i}",
+                    start=(self.flash_memory.start + (i * self.flash_page_size)),
+                    end=(self.flash_memory.start + (i * self.flash_page_size))
+                    + self.flash_page_size,
+                )
+            )
+
         # the flash option bytes should be read in their entirety
         # so use region rather than Register
         self.flash_option_bytes = Region("OptionBytes", 0x1FFFF800, 0x1FFF800 + 16)
@@ -432,9 +461,9 @@ class DeviceType:
 
     def getFlashPageAddress(self, page: int):
         """! get the flash page start address
-             checks the flash page is valid
-            @param page - the flash page number
-            @return page start address or None
+         checks the flash page is valid
+        @param page - the flash page number
+        @return page start address or None
         """
         if page > self.flash_page_num:
             return None
@@ -443,8 +472,8 @@ class DeviceType:
 
 
 class DeviceMemoryMap:
-    """ describes a device's memory layout - this is just a gathering place for information currently 
-        it will be updated to be a good representation of the connected device's memory (if needed)
+    """describes a device's memory layout - this is just a gathering place for information currently
+    it will be updated to be a good representation of the connected device's memory (if needed)
     """
 
     fsmc = (Peripheral("FSMC", 0xA0000000, 0xA0000FFF),)
@@ -529,7 +558,11 @@ class DeviceMemoryMap:
     )  ## variable length depending on device type
     flash_option_bytes = Region("OptionBytes", 0x1FFFF800, 16)
     flash_acr = Register("FLASH_ACR", 0x40022000, 4)
-    flash_kr = Register("FLASH_KEYR", 0x40022004, 4,)
+    flash_kr = Register(
+        "FLASH_KEYR",
+        0x40022004,
+        4,
+    )
     flash_optkey = Register("FLASH_OPTKEYR", 0x40022008, 4)
     flash_status_reg = (Register("FLASH_SR", 0x4002200C, 4),)  ## status refister
     flash_control_reg = Register("FLASH_CR", 0x40022010, 4)  ## control register
@@ -539,4 +572,3 @@ class DeviceMemoryMap:
 
     STMF1_SRAM_START = 0x20000000
     STMF1_FLASH_SIZE = 0x1FFFF7E0
-

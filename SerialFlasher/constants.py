@@ -1,9 +1,10 @@
-valid_bauds = [
-    9600,
-    57600,
-    115200,
-    460800,
-]
+##
+## @file constants.py
+#  @description contains constants used by the STM bootloader
+#
+#
+##
+
 
 STM32_RSP_LEN_BYTE = 1
 
