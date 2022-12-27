@@ -10,8 +10,10 @@ import sys
 
 sys.path.append("../SerialFlasher")
 from StmDevice import STMInterface
+from constants import STM_BOOTLOADER_MAX_BAUD, STM_BOOTLOADER_MIN_BAUD
 
 import asyncio
+from asyncio.queues import Queue, QueueEmpty, QueueFull
 from time import sleep
 
 from rich.panel import Panel
@@ -85,7 +87,7 @@ def binary_colour(
 STATE_IDLE_DISCONNECTED = 0
 STATE_IDLE_CONNECTED = 1
 STATE_AWAITING_INPUT_PORT = 2
-STATE_AWAITING_INPUT_BAUD = 3
+STATE_CONFIG_BAUD = 3
 STATE_AWAITING_INPUT_FLASH_READ_FILEPATH = 4
 STATE_AWAITING_INPUT_FLASH_OFFSET = 5
 STATE_AWAITING_INPUT_FLASH_SZ = 6
@@ -353,12 +355,46 @@ class StmApp(App):
             },
         ]
 
-        self.upload_menu_items = [
-            "key": config.KEY_FILE,
-            "description": "set file path",
-            "action": None,
+        self.read_menu = [
+            {
+                "key": config.KEY_FILE,
+                "description": "set file path",
+                "action": None,
+            },
+            {
+                "key": "o",
+                "description": "Configure offset",
+                "action": None,
+            },
+            {
+                "key": "l",
+                "description": "Read length",
+                "action": None,
+            },
+            {
+                "key": config.KEY_RDFS,
+                "description": "Read memory",
+                "action": None,
+            },
         ]
 
+        self.upload_menu_items = [
+            {
+                "key": config.KEY_FILE,
+                "description": "set file path",
+                "action": None,
+            },
+            {
+                "key": "o",
+                "description": "Configure offset",
+                "action": None,
+            },
+            {
+                "key": "w",
+                "description": "Write file contents to flash",
+                "action": None,
+            },
+        ]
 
         self.con_menu_items = [
             {
@@ -404,6 +440,9 @@ class StmApp(App):
                 "action": self.handle_readpages_keypress,
             },
         ]
+
+        self.active_menu = self.dc_menu_items
+
         ## there's probably a more elegent way of doing this but it works
         self.main_display = InfoDisplays(
             menu=self.build_menu(),
@@ -425,6 +464,7 @@ class StmApp(App):
     def __init__(self, driver_class=None, css_path=None, watch_css: bool = False):
 
         self.build_items()
+        self.msg_queue = Queue(10)
         super().__init__(driver_class, css_path, watch_css)
 
     ### Widgets & tables updates
@@ -476,25 +516,13 @@ class StmApp(App):
 
     def build_menu(self):
         menu = menu_template
-        opts = [
-            item
-            for item in self.menu_items
-            if item["state"] == self.state or item["state"] == STATE_ANY
-        ]
-        for opt in opts:
-            menu += (
-                f"[bold]{opt['key']}[/bold]: {opt['description']}\n"
-                if opt["state"] == self.state
-                else ""
-            )
+
+        for opt in self.active_menu:
+            menu += f"[bold]{opt['key']}[/bold]: {opt['description']}\n"
 
         menu += "\n"
-        for opt in opts:
-            menu += (
-                f"[bold]{opt['key']}[/bold]: {opt['description']}\n"
-                if opt["state"] == STATE_ANY
-                else ""
-            )
+        for opt in self.any_menu_items:
+            menu += f"[bold]{opt['key']}[/bold]: {opt['description']}\n"
 
         return Panel(
             Text.from_markup(menu),
@@ -665,9 +693,26 @@ class StmApp(App):
                 self.handle_connected()
 
     async def handle_baud_keypress(self):
-        self.state = STATE_AWAITING_INPUT_BAUD
+        self.state = STATE_CONFIG_BAUD
         self.msg_log.write("Enter baud: ")
         self.set_focus(self.input)
+        ## wait for user input
+        baud = await self.msg_queue.get()
+        try:
+            baud = int(baud)
+            if baud < STM_BOOTLOADER_MIN_BAUD or baud > STM_BOOTLOADER_MAX_BAUD:
+                raise ValueError
+            self.conn_baud = baud
+            self.msg_log.write(InfoMessage(f"Set baud to {self.conn_baud}"))
+            self.update_tables()
+        except ValueError:
+            self.msg_log.write(
+                FailMessage(
+                    f"Error, baud must be numeric value between {STM_BOOTLOADER_MIN_BAUD} and {STM_BOOTLOADER_MAX_BAUD}"
+                )
+            )
+        finally:
+            self.state = STATE_IDLE_DISCONNECTED
 
     async def handle_readflash_keypress(self):
         self.state = STATE_AWAITING_INPUT_FLASH_OFFSET
@@ -764,13 +809,9 @@ class StmApp(App):
         if key == "l":
             await self.long_running_task(sleep, 5)
 
-        for command in self.menu_items:
-            if (
-                key == command["key"]
-                and (command["state"] == self.state or command["state"] == STATE_ANY)
-                and command["action"] is not None
-            ):
-                await command["action"]()
+        for command in self.active_menu:
+            if key == command["key"] and command["action"] is not None:
+                asyncio.create_task(command["action"]())
 
     async def _on_key(self, event: Key) -> None:
         await super()._on_key(event)
@@ -783,6 +824,8 @@ class StmApp(App):
         triggered by user input, state is self.state
         TODO: Expand with other states & actions, obvs
         TODO: Fix read length off-by-1
+        TODO: Clean up input messages, move state machine
+              to keypress handlers.
         """
 
         ## state awaiting input port
@@ -793,7 +836,7 @@ class StmApp(App):
             return STATE_IDLE_DISCONNECTED
 
         ## state awaiting input baud
-        elif self.state == STATE_AWAITING_INPUT_BAUD:
+        elif self.state == STATE_CONFIG_BAUD:
             try:
                 self.conn_baud = int(message.value)
                 self.msg_log.write(InfoMessage(f"Setting baud to {self.conn_baud}"))
@@ -910,9 +953,16 @@ class StmApp(App):
 
     async def on_input_submitted(self, message: Input.Submitted) -> None:
         if self.state == STATE_IDLE_DISCONNECTED or self.state == STATE_IDLE_CONNECTED:
+            ## we are not expecting any inputs so ignore here
             pass
         else:
-            self.state = await self.app_state_machine(message)
+            ## send to message queue
+            # self.state = await self.app_state_machine(message)
+            self.msg_log.write(
+                InfoMessage(f"Putting message {message.value} into queue")
+            )
+            await self.msg_queue.put(message.value)
+            self.msg_log.write(InfoMessage(f"Done putting message into queue"))
 
 
 if __name__ == "__main__":
