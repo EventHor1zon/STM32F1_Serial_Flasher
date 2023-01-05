@@ -60,7 +60,7 @@ class STMInterface:
 
         return success
 
-    def readDeviceInfo(self):
+    def readDeviceInfo(self) -> bool:
         """collects the object's id and bootloader version
         and creates a device model from it
         NOTE: probably shouldn't have so many exceptions here?
@@ -104,7 +104,7 @@ class STMInterface:
             )
         return self.device.pid
 
-    def readOptionBytes(self):
+    def readOptionBytes(self) -> bool:
         """reads the flash option bytes and updates the device model's
         data
         """

@@ -1,9 +1,16 @@
 ##
 #   Attempt to applify STM flasher with textual's tutorial
+#   Going pretty well, impressed with the appearance now
 #
+#   Let's think state machines...
 #
-#
-#
+#       IDLE (disconnected)  -> config port
+#                            -> config baud
+#                            -> connect (state = IDLE_CONNECTED)
+#       IDLE (connected)     -> config option bytes (state = CONFIG_OPT_BYTES)
+#                            -> read memory (state = READ_MEM)
+#                            -> upload application (state = WRITE_MEM)
+#                            -> erase flash (state = ERASE_MEM)
 #
 
 import sys
@@ -86,12 +93,11 @@ def binary_colour(
 
 STATE_IDLE_DISCONNECTED = 0
 STATE_IDLE_CONNECTED = 1
-STATE_AWAITING_INPUT_PORT = 2
-STATE_CONFIG_BAUD = 3
-STATE_AWAITING_INPUT_FLASH_READ_FILEPATH = 4
-STATE_AWAITING_INPUT_FLASH_OFFSET = 5
-STATE_AWAITING_INPUT_FLASH_SZ = 6
-STATE_AWAITING_INPUT_APP_LOAD_FILEPATH = 7
+STATE_AWAITING_INPUT = 2
+STATE_ERASE_MEM = 3
+STATE_READ_MEM = 4
+STATE_WRITE_MEM = 5
+STATE_UPLOAD_APP = 6
 STATE_ANY = 255
 
 menu_template = f"""
@@ -280,9 +286,13 @@ class StmApp(App):
 
     ## internal state variables
     ## TODO: use less of these
+    #   Need - connect-opts
+    #        - io opts
+
     connected = False
     conn_port = ""
     conn_baud = 9600
+    address = None
     read_len = 0
     offset = 0
     filepath = None
@@ -359,12 +369,12 @@ class StmApp(App):
             {
                 "key": config.KEY_FILE,
                 "description": "set file path",
-                "action": None,
+                "action": self.handle_filepath_keypress,
             },
             {
                 "key": "o",
                 "description": "Configure offset",
-                "action": None,
+                "action": self.handle_offset_keypress,
             },
             {
                 "key": "l",
@@ -476,42 +486,42 @@ class StmApp(App):
         yield self.msg_log
         yield self.input
 
+    def dev_content_from_state(self):
+        if self.state == STATE_READ_MEM or self.state == STATE_WRITE_MEM:
+            return Group(
+                self.build_readwrite_table(),
+                self.build_device_table(),
+                self.chip.chip_image,
+            )
+        elif self.state == STATE_IDLE_DISCONNECTED:
+            return Group(self.build_conn_table(), self.default_device_info, "")
+        else:
+            return Group(
+                self.build_conn_table(), self.build_device_table(), self.chip.chip_image
+            )
+
     def update_tables(self):
         dev_info = self.get_widget_by_id("info")
         menu = self.get_widget_by_id("menu")
         opts = self.get_widget_by_id("opts")
 
-        if self.connected:
-            if self.chip == None:
-                self.chip = ChipImage(self.stm_device.device.name)
-            dev_info.update(
-                Panel(
-                    Group(
-                        self.build_conn_table(),
-                        self.build_device_table(),
-                        self.chip.chip_image,
-                    ),
-                    **panel_format,
-                )
-            )
+        dev_content = self.dev_content_from_state()
+        opts_content = "" if self.connected == False else self.build_opts_table()
 
-            opts.update(
-                Panel(
-                    Group(
-                        self.build_opts_table(),
-                        generateFlashImage(self.stm_device.device.flash_page_num),
-                    ),
-                    **panel_format,
-                )
+        dev_info.update(
+            Panel(
+                dev_content,
+                **panel_format,
             )
-        else:
-            dev_info.update(
-                Panel(
-                    Group(self.build_conn_table(), self.default_device_info),
-                    **panel_format,
-                )
+        )
+
+        opts.update(
+            Panel(
+                opts_content,
+                **panel_format,
             )
-            opts.update("")
+        )
+
         menu.update(self.build_menu())
 
     def build_menu(self):
@@ -633,10 +643,28 @@ class StmApp(App):
         )
         return self.conn_table
 
+    def build_readwrite_table(self) -> Table:
+        rw_table = Table("", "", **clear_table_format)
+        rw_table.add_row("", "")
+        rw_table.add_row(
+            "Operation     ",
+            binary_colour(
+                True if self.state == STATE_READ_MEM else False,
+                true_str="Read",
+                false_str="Write",
+                true_fmt="green",
+                false_fmt="blue",
+            ),
+        )
+        rw_table.add_row("Address       ", f"{hex(self.address)}")
+        rw_table.add_row("Length        ", f"{self.read_len}")
+        rw_table.add_row("Offset        ", f"{self.offset}")
+        rw_table.add_row("File path     ", f"{self.filepath}")
+
+        return Panel(rw_table, title="[bold yellow]IO[/bold yellow]", **panel_format)
+
     def idle_state(self):
         return STATE_IDLE_DISCONNECTED if not self.connected else STATE_IDLE_CONNECTED
-
-    ### Key handlers
 
     def handle_connected(self):
         self.msg_log.write(SuccessMessage("Successfully connected!"))
@@ -653,6 +681,9 @@ class StmApp(App):
                 f"Flash size: {hex(self.stm_device.device.flash_memory.size)}"
             )
         )
+        self.chip = ChipImage(self.stm_device.device.name)
+        self.active_menu = self.con_menu_items
+        self.state = STATE_IDLE_CONNECTED
         self.update_tables()
 
     def device_connect(self) -> bool:
@@ -671,55 +702,108 @@ class StmApp(App):
         finally:
             return success
 
+    ### OPERATIONS ##
+
+    async def long_running_task(self, function, *func_args):
+        dev_info = self.get_widget_by_id("info")
+        task = asyncio.get_running_loop().run_in_executor(None, function, *func_args)
+        while not task.done():
+            dev_info.update(
+                Panel(
+                    Group(
+                        self.build_conn_table(),
+                        self.build_device_table(),
+                        next(self.chip),
+                    ),
+                    **panel_format,
+                )
+            )
+            await asyncio.sleep(0.1)
+        dev_info.update(
+            Panel(
+                Group(
+                    self.build_conn_table(),
+                    self.build_device_table(),
+                    self.chip.chip_image,
+                ),
+                **panel_format,
+            )
+        )
+        return task.result()
+
+    async def input_to_attribute(self, msg: str, attribute: str, ex_type=str):
+        """awaits user input and sets the variable
+        @param attribute - the attribute to set
+        @param ex_type - expected type (tries to convert)
+        """
+        prev_state = self.state
+        self.state = STATE_AWAITING_INPUT
+        self.msg_log.write(InfoMessage(f"{msg}"))
+        self.set_focus(self.input)
+
+        msg = await self.msg_queue.get()
+        try:
+            msg_fmtd = ex_type(msg)
+            setattr(self, attribute, msg_fmtd)
+            self.msg_log.write(InfoMessage(f"Set {attribute} to {msg_fmtd}"))
+        except ValueError:
+            self.msg_log.write(ErrorMessage(f"Invalid type: expected {ex_type}"))
+        finally:
+            self.state = prev_state
+
+    ### KEYPRESS HANDLERS ###
+
     async def handle_vers_keypress(self):
+        """handle print version keypress"""
         self.msg_log.write(
             InfoMessage(f"{APPLICATION_NAME} Version {APPLICATION_VERSION}")
         )
         self.state = self.idle_state()
 
     async def handle_port_keypress(self):
-        self.msg_log.write(InfoMessage("Enter Port: "))
-        self.state = STATE_AWAITING_INPUT_PORT
-        self.set_focus(self.input)
+        """handle port input keypress"""
+        await self.input_to_attribute("Enter connection port", "conn_port")
+        self.update_tables()
+
+    async def handle_baud_keypress(self):
+        """handle baud input keypress"""
+        await self.input_to_attribute("Enter connection baud", "conn_baud")
+        self.update_tables()
 
     async def handle_connect_keypress(self):
+        """handle the 'connect' keypress
+        check parameters are set and connect to
+        the STM device bootloader
+        """
         if len(self.conn_port) == 0:
             self.msg_log.write(FailMessage("Must configure port first"))
-            self.state = STATE_AWAITING_INPUT_PORT
-            self.set_focus(self.input)
+        elif (
+            self.conn_baud < STM_BOOTLOADER_MIN_BAUD
+            or self.conn_baud > STM_BOOTLOADER_MAX_BAUD
+        ):
+            self.msg_log.write(
+                FailMessage(
+                    f"Invalid baud - min: {STM_BOOTLOADER_MIN_BAUD} max: {STM_BOOTLOADER_MAX_BAUD}"
+                )
+            )
         else:
             self.connected = self.device_connect()
             if self.connected == True:
                 self.handle_connected()
 
-    async def handle_baud_keypress(self):
-        self.state = STATE_CONFIG_BAUD
-        self.msg_log.write("Enter baud: ")
-        self.set_focus(self.input)
-        ## wait for user input
-        baud = await self.msg_queue.get()
-        try:
-            baud = int(baud)
-            if baud < STM_BOOTLOADER_MIN_BAUD or baud > STM_BOOTLOADER_MAX_BAUD:
-                raise ValueError
-            self.conn_baud = baud
-            self.msg_log.write(InfoMessage(f"Set baud to {self.conn_baud}"))
-            self.update_tables()
-        except ValueError:
-            self.msg_log.write(
-                FailMessage(
-                    f"Error, baud must be numeric value between {STM_BOOTLOADER_MIN_BAUD} and {STM_BOOTLOADER_MAX_BAUD}"
-                )
-            )
-        finally:
-            self.state = STATE_IDLE_DISCONNECTED
-
     async def handle_readflash_keypress(self):
-        self.state = STATE_AWAITING_INPUT_FLASH_OFFSET
-        self.msg_log.write("Enter Offset from start")
-        self.set_focus(self.input)
+        """handle the 'read flash' keypress
+        update menu to readwrite and update tables
+        """
+        self.state = STATE_READ_MEM
+        self.active_menu = self.read_menu
+        self.address = self.stm_device.device.flash_memory.start
+        self.update_tables()
 
     async def handle_erase_keypress(self):
+        """handle the erase keypress
+        calls the globalErase operation on the device
+        """
         self.msg_log.write(InfoMessage("Erasing flash memory..."))
         await self.long_running_task(self.stm_device.globalEraseFlash)
         self.msg_log.write(SuccessMessage("Succesfully erased all flash pages"))
@@ -759,6 +843,24 @@ class StmApp(App):
             InfoMessage(f"Page status-> Occupied pages: {occupied} Free pages: {empty}")
         )
 
+    async def handle_filepath_keypress(self):
+        self.msg_log.write(InfoMessage("Enter file path"))
+        self.set_focus(self.input)
+        ## wait for user input
+        filepath = await self.msg_queue.get()
+        filepath = filepath.strip("\n").strip("\r")
+        if len(filepath) < 1:
+            self.msg_log.write(ErrorMessage("Error - invalid filepath length"))
+            return
+        self.filepath = filepath
+        self.update_tables()
+
+    async def handle_offset_keypress(self):
+        await self.input_to_attribute(
+            "Enter offset from start address", self.offset, int
+        )
+        self.update_tables()
+
     async def handle_upload_keypress(self):
         pass
 
@@ -766,49 +868,16 @@ class StmApp(App):
         print("Bye!")
         sys.exit()
 
-    async def execute(self, function, *func_args):
-        return await asyncio.get_running_loop().run_in_executor(
-            None, lambda: function(*func_args)
-        )
-
-    async def long_running_task(self, function, *func_args):
-        dev_info = self.get_widget_by_id("info")
-        task = asyncio.get_running_loop().run_in_executor(None, function, *func_args)
-        while not task.done():
-            dev_info.update(
-                Panel(
-                    Group(
-                        self.build_conn_table(),
-                        self.build_device_table(),
-                        next(self.chip),
-                    ),
-                    **panel_format,
-                )
-            )
-            await asyncio.sleep(0.1)
-        dev_info.update(
-            Panel(
-                Group(
-                    self.build_conn_table(),
-                    self.build_device_table(),
-                    self.chip.chip_image,
-                ),
-                **panel_format,
-            )
-        )
-        return task.result()
-
     async def handle_key(self, key: str):
-        ## do not accept new keys during
-        ## operations (unless they're specifically requested)
-        conn_state = "disconnected" if not self.connected else "connected"
 
+        ## debug keybindings
         if key == "@":
             self.action_screenshot()
 
         if key == "l":
             await self.long_running_task(sleep, 5)
 
+        ## menu commands
         for command in self.active_menu:
             if key == command["key"] and command["action"] is not None:
                 asyncio.create_task(command["action"]())
@@ -816,95 +885,6 @@ class StmApp(App):
     async def _on_key(self, event: Key) -> None:
         await super()._on_key(event)
         await self.handle_key(event.char)
-
-    ### State machine
-
-    async def app_state_machine(self, message):
-        """app state machine
-        triggered by user input, state is self.state
-        TODO: Expand with other states & actions, obvs
-        TODO: Fix read length off-by-1
-        TODO: Clean up input messages, move state machine
-              to keypress handlers.
-        """
-
-        ## state awaiting input port
-        if self.state == STATE_AWAITING_INPUT_PORT:
-            self.conn_port = message.value
-            self.msg_log.write(InfoMessage(f"Setting port to {self.conn_port}"))
-            self.update_tables()
-            return STATE_IDLE_DISCONNECTED
-
-        ## state awaiting input baud
-        elif self.state == STATE_CONFIG_BAUD:
-            try:
-                self.conn_baud = int(message.value)
-                self.msg_log.write(InfoMessage(f"Setting baud to {self.conn_baud}"))
-                self.update_tables()
-            except ValueError:
-                self.msg_log.write(ErrorMessage("Invalid baud"))
-            finally:
-                return STATE_IDLE_DISCONNECTED
-
-        ## state awaiting filepath input
-        elif self.state == STATE_AWAITING_INPUT_APP_LOAD_FILEPATH:
-            self.filepath = message.value
-            return self.idle_state()
-
-        ## state awaiting flash offset
-        elif self.state == STATE_AWAITING_INPUT_FLASH_OFFSET:
-            if (
-                int(message.value) < 0
-                or int(message.value) > self.stm_device.device.flash_memory.size - 4
-            ):
-                self.msg_log.write(
-                    ErrorMessage(
-                        f"Error - Invalid offset (min: 4, max: {self.stm_device.device.flash_memory.size - 4}"
-                    )
-                )
-                return self.idle_state()
-            else:
-                self.offset = int(message.value)
-                self.msg_log.write(InfoMessage("Enter read length"))
-                self.set_focus(self.input)
-                return STATE_AWAITING_INPUT_FLASH_SZ
-
-        elif self.state == STATE_AWAITING_INPUT_FLASH_SZ:
-            if int(message.value) % 4 != 0 or int(message.value) < 4:
-                self.msg_log.write(
-                    ErrorMessage(
-                        "Invalid read length (must be a multiple of 4 bytes (min: 4))"
-                    )
-                )
-                self.set_focus(self.input)
-                return STATE_AWAITING_INPUT_FLASH_SZ
-            elif (
-                int(message.value)
-                + self.stm_device.device.flash_memory.start
-                + self.offset
-            ) > self.stm_device.device.flash_memory.end:
-                self.msg_log.write(
-                    ErrorMessage("Invalid read length, read would go out of bounds")
-                )
-                self.set_focus(self.input)
-                return STATE_AWAITING_INPUT_FLASH_SZ
-            else:
-                self.read_len = int(message.value)
-                self.msg_log.write(InfoMessage("Enter output file path"))
-                self.set_focus(self.input)
-                return STATE_AWAITING_INPUT_FLASH_READ_FILEPATH
-
-        elif self.state == STATE_AWAITING_INPUT_FLASH_READ_FILEPATH:
-            try:
-                self.filepath = message.value
-                await self.read_from_flash()
-            except Exception as e:
-                self.msg_log.write(e)
-                self.state = self.idle_state()
-        else:
-            pass
-
-        self.input.value = ""
 
     async def read_from_flash(self):
         if self.filepath is not None and self.read_len > 0:
@@ -952,17 +932,12 @@ class StmApp(App):
         self.offset = 0
 
     async def on_input_submitted(self, message: Input.Submitted) -> None:
-        if self.state == STATE_IDLE_DISCONNECTED or self.state == STATE_IDLE_CONNECTED:
+        if self.state != STATE_AWAITING_INPUT:
             ## we are not expecting any inputs so ignore here
             pass
         else:
             ## send to message queue
-            # self.state = await self.app_state_machine(message)
-            self.msg_log.write(
-                InfoMessage(f"Putting message {message.value} into queue")
-            )
             await self.msg_queue.put(message.value)
-            self.msg_log.write(InfoMessage(f"Done putting message into queue"))
 
 
 if __name__ == "__main__":
