@@ -11,3 +11,7 @@ KEY_CONN = "c"
 KEY_DCON = "d"
 KEY_FILE = "f"
 KEY_RDPAGES = "n"
+
+
+MIN_UPLOAD_FILE_LEN = 32  # 32b min file upload size
+MAX_UPLOAD_FILE_LEN = 8000000  # 8MB max file upload size

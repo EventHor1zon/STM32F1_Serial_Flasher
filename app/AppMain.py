@@ -14,6 +14,7 @@
 #
 
 import sys
+import os
 
 sys.path.append("../SerialFlasher")
 from StmDevice import STMInterface
@@ -293,7 +294,7 @@ class StmApp(App):
     conn_port = ""
     conn_baud = 9600
     address = None
-    read_len = 0
+    length = 0
     offset = 0
     filepath = None
 
@@ -379,7 +380,7 @@ class StmApp(App):
             {
                 "key": "l",
                 "description": "Read length",
-                "action": None,
+                "action": self.handle_length_keypress,
             },
             {
                 "key": config.KEY_RDFS,
@@ -704,7 +705,7 @@ class StmApp(App):
 
     ### OPERATIONS ##
 
-    async def long_running_task(self, function, *func_args):
+    async def long_running_task(self, function, *func_args, colour: str = "red"):
         dev_info = self.get_widget_by_id("info")
         task = asyncio.get_running_loop().run_in_executor(None, function, *func_args)
         while not task.done():
@@ -713,7 +714,7 @@ class StmApp(App):
                     Group(
                         self.build_conn_table(),
                         self.build_device_table(),
-                        next(self.chip),
+                        next(self.chip, colour=colour),
                     ),
                     **panel_format,
                 )
@@ -843,26 +844,50 @@ class StmApp(App):
             InfoMessage(f"Page status-> Occupied pages: {occupied} Free pages: {empty}")
         )
 
+    async def handle_length_keypress(self):
+        await self.input_to_attribute("Enter length", "length", int)
+        self.update_tables()
+
     async def handle_filepath_keypress(self):
-        self.msg_log.write(InfoMessage("Enter file path"))
-        self.set_focus(self.input)
-        ## wait for user input
-        filepath = await self.msg_queue.get()
-        filepath = filepath.strip("\n").strip("\r")
-        if len(filepath) < 1:
-            self.msg_log.write(ErrorMessage("Error - invalid filepath length"))
-            return
-        self.filepath = filepath
+        await self.input_to_attribute("Enter file path", "filepath")
+        if not os.path.exists(self.filepath):
+            self.msg_log.write(
+                ErrorMessage(f"Error: invalid file path {self.filepath}")
+            )
+            self.filepath = ""
         self.update_tables()
 
     async def handle_offset_keypress(self):
-        await self.input_to_attribute(
-            "Enter offset from start address", self.offset, int
-        )
+        await self.input_to_attribute("Enter offset from start address", "offset", int)
         self.update_tables()
 
     async def handle_upload_keypress(self):
-        pass
+        """run sanity checks then upload application"""
+        if (
+            self.length > config.MAX_UPLOAD_FILE_LEN
+            or self.length < config.MIN_UPLOAD_FILE_LEN
+        ):
+            self.msg_log.write(
+                FailMessage(
+                    f"Error - invalid file length (min {config.MIN_UPLOAD_FILE_LEN} max {config.MAX_UPLOAD_FILE_LEN})"
+                )
+            )
+            self.length = 0
+            self.update_tables()
+            return
+
+        if not self.stm_device.device.flash_memory.is_valid(self.address + self.offset):
+            self.msg_log.write(FailMessage(f"Error - invalid address with offset"))
+            self.offset = 0
+            self.update_tables()
+            return
+
+        status = await self.long_running_task(
+            self.stm_device.writeApplicationFileToFlash,
+            self.filepath,
+            self.offset,
+            colour="green",
+        )
 
     def handle_exit_keypress(self):
         print("Bye!")
