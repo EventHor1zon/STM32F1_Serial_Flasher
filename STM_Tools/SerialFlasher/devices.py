@@ -352,6 +352,14 @@ class OptionBytes:
         print("Raw: ", end="\t")
         print(self.raw_bytes)
 
+    def rawBytesToString(self):
+        output = ""
+        for i in range(16):
+            output += f"{hex(self.raw_bytes[i]).strip('0x').zfill(2).upper()} "
+            if (i + 1) % 4 == 0:
+                output += "\n"
+        return output
+
 
 class DeviceType:
 

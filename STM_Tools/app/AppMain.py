@@ -32,7 +32,7 @@ from rich.text import Text
 from rich import print as rprint
 
 from textual.app import App, ComposeResult
-from textual.events import Event, Key
+from textual.events import Event, Key, Focus, Blur
 from textual.message import Message
 from textual.reactive import reactive
 from textual.containers import Container
@@ -43,13 +43,17 @@ from textual.widgets import (
     Input,
 )
 
-from chip_image import ChipImage, generateFlashImage
-import app_config as config
+from .chip_image import ChipImage, generateFlashImage
+from . import app_config as config
 
 DEBUG_MODE = False
 
+
+# Application Details
 APPLICATION_NAME = "StmF1 Flasher Tool"
+
 APPLICATION_VERSION = "0.0.1"
+
 APPLICATION_BANNER = """
 ░█▀▀░▀█▀░█▄█░░░█▀▀░█░░░█▀█░█▀▀░█░█░█▀▀░█▀▄
 ░▀▀█░░█░░█░█░░░█▀▀░█░░░█▀█░▀▀█░█▀█░█▀▀░█▀▄
@@ -57,6 +61,8 @@ APPLICATION_BANNER = """
 """
 
 
+# Application States
+# TODO: Make this an enum?
 STATE_IDLE_DISCONNECTED = 0
 STATE_IDLE_CONNECTED = 1
 STATE_AWAITING_INPUT = 2
@@ -64,7 +70,12 @@ STATE_ERASE_MEM = 3
 STATE_READ_MEM = 4
 STATE_WRITE_MEM = 5
 STATE_UPLOAD_APP = 6
+STATE_OPTBYTE_CONFIG = 7
 STATE_ANY = 255
+
+
+# Text Formatting functions
+# TODO: Move these to their own file
 
 
 def SuccessMessage(msg) -> Text:
@@ -112,6 +123,11 @@ def binary_colour(
     )
 
 
+# Application Sections
+# TODO: Move these to their own file
+# TODO: Make attributes configurable
+
+
 class TextBox(Static):
     def __init__(
         self,
@@ -146,6 +162,34 @@ class OptBytesDisplay(Static):
         name=None,
         id=None,
         classes=None,
+    ) -> None:
+        super().__init__(
+            renderable,
+            expand=expand,
+            shrink=shrink,
+            markup=markup,
+            name=name,
+            id=id,
+            classes=classes,
+        )
+        self.styles.background = "black"
+
+    def _on_focus(self, event: Focus) -> None:
+        self.styles.background = "blue"
+        return super()._on_focus(event)
+
+
+class OptBytesRaw(Static):
+    def __init__(
+        self,
+        renderable: RenderableType = "",
+        *,
+        expand: bool = False,
+        shrink: bool = False,
+        markup: bool = True,
+        name: str = None,
+        id: str = None,
+        classes: str = None,
     ) -> None:
         super().__init__(
             renderable,
@@ -453,6 +497,12 @@ class StmApp(App):
                 "state": STATE_IDLE_CONNECTED,
                 "action": self.handle_readpages_keypress,
             },
+            {
+                "key": config.KEY_OPTB,
+                "description": "Configure Option Bytes",
+                "action": self.handle_option_bytes,
+                "state": STATE_IDLE_CONNECTED,
+            },
         ]
 
         self.active_menu = self.dc_menu_items
@@ -510,7 +560,8 @@ class StmApp(App):
         opts = self.get_widget_by_id("opts")
 
         dev_content = self.dev_content_from_state()
-        opts_content = "" if self.connected == False else self.build_opts_table()
+        opts_table = "" if self.connected == False else self.build_opts_table()
+        opts_raw = "" if self.connected == False else self.build_opts_raw()
 
         dev_info.update(
             Panel(
@@ -521,7 +572,7 @@ class StmApp(App):
 
         opts.update(
             Panel(
-                opts_content,
+                Group(opts_table, opts_raw),
                 **config.panel_format,
             )
         )
@@ -546,7 +597,12 @@ class StmApp(App):
 
     def build_opts_table(self) -> Table:
         opts_table = Table(
-            "Option Byte", "Value", padding=(0, 1), expand=True, show_edge=False
+            "Option Byte",
+            "Value",
+            padding=(0, 1),
+            expand=True,
+            show_edge=False,
+            box=None,
         )
         opts_table.add_row("", "")
         opts_table.add_row(
@@ -603,11 +659,16 @@ class StmApp(App):
         opts_table.add_row(
             "Write Prot 3", str(self.stm_device.device.opt_bytes.writeProtect3)
         )
+
         return Panel(
             opts_table,
             title="[bold cyan]Flash Option bytes[/bold cyan]",
             **config.panel_format,
         )
+
+    def build_opts_raw(self):
+        raw_bytes_string = MARKUP(self.stm_device.device.opt_bytes.rawBytesToString())
+        return Panel(raw_bytes_string, **config.panel_format)
 
     def build_device_table(self) -> Table:
         device_table = Table("", "", **config.clear_table_format)
@@ -640,7 +701,7 @@ class StmApp(App):
         conn_table.add_row("", "")  # spacer
         conn_table.add_row(
             "Connected    ",
-            binary_colour(self.connected),
+            binary_colour(self.connected, "connected", "disconnected"),
         )
         conn_table.add_row("Port         ", self.conn_port)
         conn_table.add_row("Baud         ", str(self.conn_baud))
@@ -903,6 +964,9 @@ class StmApp(App):
             STATE_IDLE_CONNECTED if self.connected == True else STATE_IDLE_DISCONNECTED
         )
         self.update_tables()
+
+    async def handle_option_bytes(self):
+        pass
 
     def handle_exit_keypress(self):
         print("Bye!")

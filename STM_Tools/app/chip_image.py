@@ -1,7 +1,7 @@
 import sys
 
 sys.path.append("../SerialFlasher")
-from StmDevice import STMInterface
+from ..SerialFlasher.StmDevice import STMInterface
 
 from rich.text import Text
 
