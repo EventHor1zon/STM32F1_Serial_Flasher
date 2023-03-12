@@ -3,8 +3,8 @@ from struct import unpack, pack
 from enum import Enum
 from dataclasses import dataclass
 from collections import namedtuple
-from errors import DeviceNotSupportedError
-from utilities import getByteComplement, setBit, clearBit
+from .errors import DeviceNotSupportedError
+from .utilities import getByteComplement, setBit, clearBit
 
 STM32_F1_FLASH_KEYS = {
     "RDPRT_KEY": 0x00A5,

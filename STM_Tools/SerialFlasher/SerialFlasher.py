@@ -15,8 +15,8 @@ from time import sleep
 import sys
 from serial import Serial, SerialTimeoutException, SerialException, PARITY_EVEN
 import binascii
-from constants import *
-from errors import (
+from .constants import *
+from .errors import (
     InformationNotRetrieved,
     InvalidAddressError,
     InvalidReadLengthError,
@@ -27,7 +27,7 @@ from errors import (
     UnexpectedResponseError,
     InvalidEraseLengthError,
 )
-from utilities import getByteComplement
+from .utilities import getByteComplement
 
 ## SerialFlasher Class
 #   This class represents the object used to interface

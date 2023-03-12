@@ -1,7 +1,7 @@
 from time import sleep
 from serial import Serial, SerialTimeoutException, SerialException, PARITY_EVEN
-from SerialFlasher.SerialFlasher import SerialTool
-from SerialFlasher.devices import OptionBytes
+from STM_Tools.SerialFlasher.SerialFlasher import SerialTool
+from STM_Tools.SerialFlasher.devices import OptionBytes
 from struct import unpack
 import sys
 

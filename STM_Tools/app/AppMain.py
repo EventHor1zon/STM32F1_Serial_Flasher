@@ -16,9 +16,8 @@
 import sys
 import os
 
-sys.path.append("../SerialFlasher")
-from StmDevice import STMInterface
-from constants import STM_BOOTLOADER_MAX_BAUD, STM_BOOTLOADER_MIN_BAUD
+from ..SerialFlasher.StmDevice import STMInterface
+from ..SerialFlasher.constants import STM_BOOTLOADER_MAX_BAUD, STM_BOOTLOADER_MIN_BAUD
 
 import asyncio
 from asyncio.queues import Queue, QueueEmpty, QueueFull
@@ -47,6 +46,8 @@ from textual.widgets import (
 from chip_image import ChipImage, generateFlashImage
 import app_config as config
 
+DEBUG_MODE = False
+
 APPLICATION_NAME = "StmF1 Flasher Tool"
 APPLICATION_VERSION = "0.0.1"
 APPLICATION_BANNER = """
@@ -54,42 +55,6 @@ APPLICATION_BANNER = """
 ░▀▀█░░█░░█░█░░░█▀▀░█░░░█▀█░▀▀█░█▀█░█▀▀░█▀▄
 ░▀▀▀░░▀░░▀░▀░░░▀░░░▀▀▀░▀░▀░▀▀▀░▀░▀░▀▀▀░▀░▀
 """
-
-
-def SuccessMessage(msg):
-    return Text.from_markup(
-        f"[bold][[green]+[/green]][/bold] {msg}",
-    )
-
-
-def InfoMessage(msg):
-    return Text.from_markup(f"[bold][[yellow]@[/yellow]][/bold] {msg}")
-
-
-def FailMessage(msg):
-    return Text.from_markup(f"[bold][[magenta]-[/magenta]][/bold] {msg}")
-
-
-def ErrorMessage(msg):
-    return Text.from_markup(f"[bold][[red]![/red]][/bold] {msg}")
-
-
-def MARKUP(msg):
-    return Text.from_markup(msg)
-
-
-def binary_colour(
-    condition: bool,
-    true_str: str = None,
-    false_str=None,
-    true_fmt: str = "green",
-    false_fmt: str = "red",
-):
-    true_msg = str(condition) if true_str is None else true_str
-    false_msg = str(condition) if false_str is None else false_str
-    return Text.from_markup(
-        f"[{true_fmt if condition else false_fmt}]{true_msg if condition else false_msg}[/{true_fmt if condition else false_fmt}]"
-    )
 
 
 STATE_IDLE_DISCONNECTED = 0
@@ -101,29 +66,50 @@ STATE_WRITE_MEM = 5
 STATE_UPLOAD_APP = 6
 STATE_ANY = 255
 
-menu_template = f"""
-[green]Actions[/green]
-        
-"""
 
-panel_format = {
-    "box": SQUARE,
-    "expand": True,
-    "title_align": "left",
-    "border_style": Style(color="yellow"),
-}
+def SuccessMessage(msg) -> Text:
+    return Text.from_markup(
+        f"[bold][[green]+[/green]][/bold] {msg}",
+    )
 
 
-clear_table_format = {
-    "show_edge": False,
-    "show_header": False,
-    "expand": True,
-    "box": None,
-    "padding": (0, 1),
-}
+def InfoMessage(msg) -> Text:
+    return Text.from_markup(f"[bold][[yellow]@[/yellow]][/bold] {msg}")
 
-connected = False
-accept_input = False
+
+def FailMessage(msg) -> Text:
+    return Text.from_markup(f"[bold][[magenta]-[/magenta]][/bold] {msg}")
+
+
+def ErrorMessage(msg) -> Text:
+    return Text.from_markup(f"[bold][[red]![/red]][/bold] {msg}")
+
+
+def MARKUP(msg) -> Text:
+    return Text.from_markup(msg)
+
+
+def binary_colour(
+    condition: bool,
+    true_str: str,
+    false_str: str,
+    true_fmt: str = "green",
+    false_fmt: str = "red",
+) -> Text:
+    """! @function binary_colour
+    @brief returns a Rich Text object coloured depending on a binary condition
+    @parameter condition condition on which string is coloured
+    @parameter true_str print this string if condition is true
+    @parameter false_str print this string if condition is false
+    @parameter true_fmt format string thusly if true (default green)
+    @parameter false_fmt format string thusly if false (default red)
+    @return formatted Rich Text object
+    """
+    true_msg = str(condition) if true_str is None else true_str
+    false_msg = str(condition) if false_str is None else false_str
+    return Text.from_markup(
+        f"[{true_fmt if condition else false_fmt}]{true_msg if condition else false_msg}[/{true_fmt if condition else false_fmt}]"
+    )
 
 
 class TextBox(Static):
@@ -202,6 +188,10 @@ class StringGetter(Input):
 
 
 class StringPutter(TextLog):
+    """!@class StringPutter
+    @brief class to display text feedback from the application
+    """
+
     def __init__(
         self,
         *,
@@ -301,9 +291,9 @@ class StmApp(App):
     ## Default tables & widget definitions
     conn_table = None
     dev_table = None
-    chip_image = """"""
+    chip_image = ""
     chip = None
-    default_conn_info = Table("", "", **clear_table_format)
+    default_conn_info = Table("", "", **config.clear_table_format)
 
     default_device_info = Panel(
         Text.from_markup(
@@ -311,7 +301,7 @@ class StmApp(App):
             style=Style(color="red", bold=True, italic=True, blink=True),
         ),
         title="[bold orange]Device[/bold orange]",
-        **panel_format,
+        **config.panel_format,
     )
 
     banner = Static(APPLICATION_BANNER, expand=True, id="banner")
@@ -324,7 +314,7 @@ class StmApp(App):
         self.default_conn_info.add_row("", "")
         self.default_conn_info.add_row(
             "Connected    ",
-            binary_colour(self.connected),
+            binary_colour(self.connected, "connected", "disconnected"),
         )
         self.default_conn_info.add_row("Port         ", f"{self.conn_port}")
         self.default_conn_info.add_row("Baud         ", f"{self.conn_baud}")
@@ -359,6 +349,12 @@ class StmApp(App):
                 "action": self.handle_exit_keypress,
             },
             {
+                "key": config.KEY_CNCL,
+                "description": "Cancel",
+                "state": STATE_ANY,
+                "action": self.handle_cancel_keypress,
+            },
+            {
                 "key": config.KEY_VERS,
                 "description": "Print Version",
                 "state": STATE_ANY,
@@ -371,21 +367,25 @@ class StmApp(App):
                 "key": config.KEY_FILE,
                 "description": "set file path",
                 "action": self.handle_filepath_keypress,
+                "state": STATE_READ_MEM,
             },
             {
                 "key": "o",
                 "description": "Configure offset",
                 "action": self.handle_offset_keypress,
+                "state": STATE_READ_MEM,
             },
             {
                 "key": "l",
                 "description": "Read length",
                 "action": self.handle_length_keypress,
+                "state": STATE_READ_MEM,
             },
             {
                 "key": config.KEY_RDFS,
                 "description": "Read memory",
                 "action": None,
+                "state": STATE_READ_MEM,
             },
         ]
 
@@ -394,16 +394,19 @@ class StmApp(App):
                 "key": config.KEY_FILE,
                 "description": "set file path",
                 "action": None,
+                "state": STATE_UPLOAD_APP,
             },
             {
                 "key": "o",
                 "description": "Configure offset",
                 "action": None,
+                "state": STATE_UPLOAD_APP,
             },
             {
                 "key": "w",
                 "description": "Write file contents to flash",
                 "action": None,
+                "state": STATE_UPLOAD_APP,
             },
         ]
 
@@ -445,7 +448,7 @@ class StmApp(App):
                 "action": None,
             },
             {
-                "key": config.KEY_RDPAGES,
+                "key": config.KEY_RDPG,
                 "description": "Read flash pages",
                 "state": STATE_IDLE_CONNECTED,
                 "action": self.handle_readpages_keypress,
@@ -462,12 +465,12 @@ class StmApp(App):
                     Panel(
                         self.default_conn_info,
                         title="[bold yellow]Connection[/bold yellow]",
-                        **panel_format,
+                        **config.panel_format,
                     ),
                     self.default_device_info,
                     fit=True,
                 ),
-                **panel_format,
+                **config.panel_format,
             ),
             opts="",
         )
@@ -512,21 +515,21 @@ class StmApp(App):
         dev_info.update(
             Panel(
                 dev_content,
-                **panel_format,
+                **config.panel_format,
             )
         )
 
         opts.update(
             Panel(
                 opts_content,
-                **panel_format,
+                **config.panel_format,
             )
         )
 
         menu.update(self.build_menu())
 
     def build_menu(self):
-        menu = menu_template
+        menu = config.menu_template
 
         for opt in self.active_menu:
             menu += f"[bold]{opt['key']}[/bold]: {opt['description']}\n"
@@ -538,7 +541,7 @@ class StmApp(App):
         return Panel(
             Text.from_markup(menu),
             title="[bold red]Menu[/bold red]",
-            **panel_format,
+            **config.panel_format,
         )
 
     def build_opts_table(self) -> Table:
@@ -603,11 +606,11 @@ class StmApp(App):
         return Panel(
             opts_table,
             title="[bold cyan]Flash Option bytes[/bold cyan]",
-            **panel_format,
+            **config.panel_format,
         )
 
     def build_device_table(self) -> Table:
-        device_table = Table("", "", **clear_table_format)
+        device_table = Table("", "", **config.clear_table_format)
         device_table.add_row("", "")  # spacer
         device_table.add_row("Device Type   ", f"{self.stm_device.device.name}")
         device_table.add_row("Device ID     ", f"{hex(self.stm_device.getDeviceId())}")
@@ -625,13 +628,15 @@ class StmApp(App):
             "RAM Size      ", f"{hex(self.stm_device.device.ram.size)}"
         )
         self.dev_table = Panel(
-            device_table, title="[bold yellow]Device[/bold yellow]", **panel_format
+            device_table,
+            title="[bold yellow]Device[/bold yellow]",
+            **config.panel_format,
         )
 
         return self.dev_table
 
     def build_conn_table(self) -> Table:
-        conn_table = Table("", "", **clear_table_format)
+        conn_table = Table("", "", **config.clear_table_format)
         conn_table.add_row("", "")  # spacer
         conn_table.add_row(
             "Connected    ",
@@ -640,12 +645,14 @@ class StmApp(App):
         conn_table.add_row("Port         ", self.conn_port)
         conn_table.add_row("Baud         ", str(self.conn_baud))
         self.conn_table = Panel(
-            conn_table, title="[bold yellow]Connection[/bold yellow]", **panel_format
+            conn_table,
+            title="[bold yellow]Connection[/bold yellow]",
+            **config.panel_format,
         )
         return self.conn_table
 
     def build_readwrite_table(self) -> Table:
-        rw_table = Table("", "", **clear_table_format)
+        rw_table = Table("", "", **config.clear_table_format)
         rw_table.add_row("", "")
         rw_table.add_row(
             "Operation     ",
@@ -662,7 +669,9 @@ class StmApp(App):
         rw_table.add_row("Offset        ", f"{self.offset}")
         rw_table.add_row("File path     ", f"{self.filepath}")
 
-        return Panel(rw_table, title="[bold yellow]IO[/bold yellow]", **panel_format)
+        return Panel(
+            rw_table, title="[bold yellow]IO[/bold yellow]", **config.panel_format
+        )
 
     def idle_state(self):
         return STATE_IDLE_DISCONNECTED if not self.connected else STATE_IDLE_CONNECTED
@@ -716,7 +725,7 @@ class StmApp(App):
                         self.build_device_table(),
                         next(self.chip, colour=colour),
                     ),
-                    **panel_format,
+                    **config.panel_format,
                 )
             )
             await asyncio.sleep(0.1)
@@ -727,7 +736,7 @@ class StmApp(App):
                     self.build_device_table(),
                     self.chip.chip_image,
                 ),
-                **panel_format,
+                **config.panel_format,
             )
         )
         return task.result()
@@ -889,6 +898,12 @@ class StmApp(App):
             colour="green",
         )
 
+    async def handle_cancel_keypress(self):
+        self.state = (
+            STATE_IDLE_CONNECTED if self.connected == True else STATE_IDLE_DISCONNECTED
+        )
+        self.update_tables()
+
     def handle_exit_keypress(self):
         print("Bye!")
         sys.exit()
@@ -899,8 +914,9 @@ class StmApp(App):
         if key == "@":
             self.action_screenshot()
 
-        if key == "l":
-            await self.long_running_task(sleep, 5)
+        if DEBUG_MODE:
+            if key == "l":
+                await self.long_running_task(sleep, 5)
 
         ## menu commands
         for command in self.active_menu:

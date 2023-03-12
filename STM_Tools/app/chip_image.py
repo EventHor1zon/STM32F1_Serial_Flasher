@@ -52,7 +52,6 @@ def generateFlashImage(
 class ChipImage:
 
     step = 0
-    colour = "red"
 
     def __init__(self, name: str, colour: str = "red"):
         self.colour = colour
