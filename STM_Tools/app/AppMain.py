@@ -12,6 +12,22 @@
 #                            -> upload application (state = WRITE_MEM)
 #                            -> erase flash (state = ERASE_MEM)
 #
+#
+#  Option Bytes menu
+#       Want to make the option bytes configurable
+#       Ideally highlight window & let the user select the
+#       opt-byte setting themselves
+#
+#       However would need to convert the option bytes menu into
+#       a more interactive widget to do that
+#
+#       Could use the list type, fill the binary options with
+#
+#
+#
+#
+#
+
 
 import sys
 import os
@@ -36,12 +52,7 @@ from textual.events import Event, Key, Focus, Blur
 from textual.message import Message
 from textual.reactive import reactive
 from textual.containers import Container
-from textual.widgets import (
-    Header,
-    Static,
-    TextLog,
-    Input,
-)
+from textual.widgets import Header, Static, TextLog, Input, ListView, ListItem, Label
 
 from .chip_image import ChipImage, generateFlashImage
 from . import app_config as config
@@ -151,31 +162,22 @@ class TextBox(Static):
         )
 
 
-class OptBytesDisplay(Static):
+class OptBytesDisplay(ListView):
     def __init__(
         self,
-        renderable: RenderableType = "",
-        *,
-        expand: bool = False,
-        shrink: bool = False,
-        markup: bool = True,
-        name=None,
-        id=None,
-        classes=None,
+        *children: ListItem,
+        initial_index: int = 0,
+        name: str = None,
+        id: None = None,
+        classes: str = None,
     ) -> None:
+        blank_child = ListItem(Label(""))
+
         super().__init__(
-            renderable,
-            expand=expand,
-            shrink=shrink,
-            markup=markup,
-            name=name,
-            id=id,
-            classes=classes,
+            *children, initial_index=initial_index, name=name, id=id, classes=classes
         )
-        self.styles.background = "black"
 
     def _on_focus(self, event: Focus) -> None:
-        self.styles.background = "blue"
         return super()._on_focus(event)
 
 
@@ -277,7 +279,7 @@ class InfoDisplays(Static):
         self,
         menu: RenderableType = "",
         info: RenderableType = "",
-        opts: RenderableType = "",
+        opts=None,
         renderable: RenderableType = "",
         *,
         expand: bool = False,
@@ -347,6 +349,8 @@ class StmApp(App):
         title="[bold orange]Device[/bold orange]",
         **config.panel_format,
     )
+
+    default_opts = ListItem(Label("Nothing"))
 
     banner = Static(APPLICATION_BANNER, expand=True, id="banner")
     msg_log = StringPutter(max_lines=8, name="msg_log", id="msg_log")
@@ -522,7 +526,7 @@ class StmApp(App):
                 ),
                 **config.panel_format,
             ),
-            opts="",
+            opts=self.default_opts,
         )
 
     def __init__(self, driver_class=None, css_path=None, watch_css: bool = False):
@@ -560,8 +564,7 @@ class StmApp(App):
         opts = self.get_widget_by_id("opts")
 
         dev_content = self.dev_content_from_state()
-        opts_table = "" if self.connected == False else self.build_opts_table()
-        opts_raw = "" if self.connected == False else self.build_opts_raw()
+        opts_items = "" if self.connected == False else self.build_opts_table()
 
         dev_info.update(
             Panel(
@@ -570,12 +573,7 @@ class StmApp(App):
             )
         )
 
-        opts.update(
-            Panel(
-                Group(opts_table, opts_raw),
-                **config.panel_format,
-            )
-        )
+        # TODO: Async update the opts menu
 
         menu.update(self.build_menu())
 
@@ -596,75 +594,140 @@ class StmApp(App):
         )
 
     def build_opts_table(self) -> Table:
-        opts_table = Table(
-            "Option Byte",
-            "Value",
-            padding=(0, 1),
-            expand=True,
-            show_edge=False,
-            box=None,
+        # opts_table = Table(
+        #     "Option Byte",
+        #     "Value",
+        #     padding=(0, 1),
+        #     expand=True,
+        #     show_edge=False,
+        #     box=None,
+        # )
+        # opts_table.add_row("", "")
+        # opts_table.add_row(
+        #     "Read Protect",
+        #     binary_colour(
+        #         self.stm_device.device.opt_bytes.readProtect,
+        #         true_str="enabled",
+        #         false_str="disabled",
+        #         false_fmt="blue",
+        #     ),
+        # )
+        # opts_table.add_row(
+        #     "Watchdog Type",
+        #     binary_colour(
+        #         self.stm_device.device.opt_bytes.watchdogType,
+        #         false_str="Hardware",
+        #         true_str="Software",
+        #         false_fmt="blue",
+        #     ),
+        # )
+        # opts_table.add_row(
+        #     "Rst on Standby",
+        #     binary_colour(
+        #         self.stm_device.device.opt_bytes.resetOnStandby,
+        #         true_str="enabled",
+        #         false_str="disabled",
+        #         false_fmt="blue",
+        #     ),
+        # )
+        # opts_table.add_row(
+        #     "Rst on Stop",
+        #     binary_colour(
+        #         self.stm_device.device.opt_bytes.resetOnStop,
+        #         true_str="enabled",
+        #         false_str="disabled",
+        #         false_fmt="blue",
+        #     ),
+        # )
+        # opts_table.add_row(
+        #     "Data Byte 0", f"{hex(self.stm_device.device.opt_bytes.dataByte0)}"
+        # )
+        # opts_table.add_row(
+        #     "Data Byte 1", f"{hex(self.stm_device.device.opt_bytes.dataByte1)}"
+        # )
+        # opts_table.add_row(
+        #     "Write Prot 0", str(self.stm_device.device.opt_bytes.writeProtect0)
+        # )
+        # opts_table.add_row(
+        #     "Write Prot 1", str(self.stm_device.device.opt_bytes.writeProtect1)
+        # )
+        # opts_table.add_row(
+        #     "Write Prot 2", str(self.stm_device.device.opt_bytes.writeProtect2)
+        # )
+        # opts_table.add_row(
+        #     "Write Prot 3", str(self.stm_device.device.opt_bytes.writeProtect3)
+        # )
+
+        # return Panel(
+        #     opts_table,
+        #     title="[bold cyan]Flash Option bytes[/bold cyan]",
+        #     **config.panel_format,
+        # )
+        items = []
+        items.append(
+            ListItem(
+                Label(f"Read Protect : {self.stm_device.device.opt_bytes.readProtect}")
+            )
         )
-        opts_table.add_row("", "")
-        opts_table.add_row(
-            "Read Protect",
-            binary_colour(
-                self.stm_device.device.opt_bytes.readProtect,
-                true_str="enabled",
-                false_str="disabled",
-                false_fmt="blue",
-            ),
+        items.append(
+            ListItem(
+                Label(
+                    f"Watchdog Type : {self.stm_device.device.opt_bytes.watchdogType}"
+                )
+            )
         )
-        opts_table.add_row(
-            "Watchdog Type",
-            binary_colour(
-                self.stm_device.device.opt_bytes.watchdogType,
-                false_str="Hardware",
-                true_str="Software",
-                false_fmt="blue",
-            ),
+        items.append(
+            ListItem(
+                Label(
+                    f"Rst on Standby : {self.stm_device.device.opt_bytes.resetOnStandby}"
+                )
+            )
         )
-        opts_table.add_row(
-            "Rst on Standby",
-            binary_colour(
-                self.stm_device.device.opt_bytes.resetOnStandby,
-                true_str="enabled",
-                false_str="disabled",
-                false_fmt="blue",
-            ),
+        items.append(
+            ListItem(
+                Label(f"Rst on Stop : {self.stm_device.device.opt_bytes.resetOnStop}")
+            )
         )
-        opts_table.add_row(
-            "Rst on Stop",
-            binary_colour(
-                self.stm_device.device.opt_bytes.resetOnStop,
-                true_str="enabled",
-                false_str="disabled",
-                false_fmt="blue",
-            ),
+        items.append(
+            ListItem(
+                Label(f"Data Byte 0 : {self.stm_device.device.opt_bytes.dataByte0}")
+            )
         )
-        opts_table.add_row(
-            "Data Byte 0", f"{hex(self.stm_device.device.opt_bytes.dataByte0)}"
+        items.append(
+            ListItem(
+                Label(f"Data Byte 1 : {self.stm_device.device.opt_bytes.dataByte1}")
+            )
         )
-        opts_table.add_row(
-            "Data Byte 1", f"{hex(self.stm_device.device.opt_bytes.dataByte1)}"
+        items.append(
+            ListItem(
+                Label(
+                    f"Write Prot 0 : {self.stm_device.device.opt_bytes.writeProtect0}"
+                )
+            )
         )
-        opts_table.add_row(
-            "Write Prot 0", str(self.stm_device.device.opt_bytes.writeProtect0)
+        items.append(
+            ListItem(
+                Label(
+                    f"Write Prot 1 : {self.stm_device.device.opt_bytes.writeProtect1}"
+                )
+            )
         )
-        opts_table.add_row(
-            "Write Prot 1", str(self.stm_device.device.opt_bytes.writeProtect1)
+        items.append(
+            ListItem(
+                Label(
+                    f"Write Prot 2 : {self.stm_device.device.opt_bytes.writeProtect2}"
+                )
+            )
         )
-        opts_table.add_row(
-            "Write Prot 2", str(self.stm_device.device.opt_bytes.writeProtect2)
-        )
-        opts_table.add_row(
-            "Write Prot 3", str(self.stm_device.device.opt_bytes.writeProtect3)
+        items.append(
+            ListItem(
+                Label(
+                    f"Write Prot 3 : {self.stm_device.device.opt_bytes.writeProtect3}"
+                )
+            )
         )
 
-        return Panel(
-            opts_table,
-            title="[bold cyan]Flash Option bytes[/bold cyan]",
-            **config.panel_format,
-        )
+        return items
 
     def build_opts_raw(self):
         raw_bytes_string = MARKUP(self.stm_device.device.opt_bytes.rawBytesToString())
