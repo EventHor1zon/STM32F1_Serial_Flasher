@@ -1,7 +1,12 @@
 from optparse import Option
 import unittest
-from SerialFlasher.devices import DeviceType, OptionBytes, Region, FlashOptionBytes
-from SerialFlasher.errors import *
+from stm_tools.serialflasher.devices import (
+    DeviceType,
+    OptionBytes,
+    Region,
+    FlashOptionBytes,
+)
+from stm_tools.serialflasher.errors import *
 from collections import namedtuple
 
 DEV_TEST_XL_DEVICE_ID = 0x0430
@@ -9,10 +14,12 @@ DEV_TEST_VALID_DEVICE_ID = 0x0410
 DEV_TEST_INVALID_DEVICE_ID = 0xF410
 DEV_TEST_VALID_BOOTLOADER_ID = 2.2
 DEV_TEST_VALID_DEVICE_PAGE_SIZE = 1024
-DEVICETYPE_TEST_EXAMPLE_OPTBYTES = b'\xa5Z\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff'
+DEVICETYPE_TEST_EXAMPLE_OPTBYTES = (
+    b"\xa5Z\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff"
+)
+
 
 class DeviceTypeTestCase(unittest.TestCase):
-
     def testInitDeviceValidId(self):
         dev = DeviceType(DEV_TEST_VALID_DEVICE_ID, DEV_TEST_VALID_BOOTLOADER_ID)
         self.assertIsInstance(dev, DeviceType)
@@ -42,8 +49,9 @@ class DeviceTypeTestCase(unittest.TestCase):
 
     def testDeviceFlashMemorySize(self):
         xl_dev = DeviceType(DEV_TEST_XL_DEVICE_ID, DEV_TEST_VALID_BOOTLOADER_ID)
-        self.assertEqual(xl_dev.flash_memory.size, xl_dev.flash_page_num * xl_dev.flash_page_size)
-
+        self.assertEqual(
+            xl_dev.flash_memory.size, xl_dev.flash_page_num * xl_dev.flash_page_size
+        )
 
     def testOptionBytesUpdate(self):
         dev = DeviceType(DEV_TEST_VALID_DEVICE_ID, DEV_TEST_VALID_BOOTLOADER_ID)

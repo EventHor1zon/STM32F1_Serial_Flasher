@@ -1,17 +1,19 @@
 ##! Tests for the OptionBytes class
-# 
+#
 # Test the loading/unloading of bytes
 # against a known good option bytes contents
-#  
+#
 
 import unittest
-from SerialFlasher.devices import OptionBytes
-from SerialFlasher.errors import *
+from stm_tools.serialflasher.devices import OptionBytes
+from stm_tools.serialflasher.errors import *
 
-OPTBYTE_TEST_VALID_OPTION_BYTES = b'\xa5Z\xff\x00Z\xa5\xff\x00\xff\x00\xff\x00\xff\x00\xff\x00'
+OPTBYTE_TEST_VALID_OPTION_BYTES = (
+    b"\xa5Z\xff\x00Z\xa5\xff\x00\xff\x00\xff\x00\xff\x00\xff\x00"
+)
+
 
 class OptioByteTestCase(unittest.TestCase):
-
     def testInitOptionBytesAttributesInstance(self):
         fob = OptionBytes.FromAttributes()
         self.assertIsInstance(fob, OptionBytes)
@@ -22,7 +24,7 @@ class OptioByteTestCase(unittest.TestCase):
 
     def testOptionBytesFromBytesKnownData(self):
         fob = OptionBytes.FromBytes(OPTBYTE_TEST_VALID_OPTION_BYTES)
-        self.assertEqual(fob.data_byte_1, 0xa5)
+        self.assertEqual(fob.data_byte_1, 0xA5)
 
     def testOptionBytesFromAttributesKnownData(self):
         fob = OptionBytes.FromAttributes(data_byte_1=0x1F)
@@ -37,7 +39,7 @@ class OptioByteTestCase(unittest.TestCase):
         raw = fob.rawBytes
         self.assertIsInstance(raw, bytes)
         self.assertEqual(raw, OPTBYTE_TEST_VALID_OPTION_BYTES)
-    
+
     def testOptionBytesResetsFromKnown(self):
         fob = OptionBytes.FromBytes(OPTBYTE_TEST_VALID_OPTION_BYTES)
         self.assertEqual(fob.resetOnStop, 0)
@@ -54,5 +56,3 @@ class OptioByteTestCase(unittest.TestCase):
         fob = OptionBytes.FromAttributes(watchdog_type=0)
         fob.watchdogType = 1
         self.assertEqual(fob.watchdogType, 1)
-
-    
