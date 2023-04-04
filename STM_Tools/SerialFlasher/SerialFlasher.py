@@ -8,13 +8,10 @@
 #   Also builds a profile of the device and its settings.
 #
 
-from dataclasses import dataclass
-from enum import Enum
-from struct import unpack
+
 from time import sleep
 import sys
 from serial import Serial, SerialTimeoutException, SerialException, PARITY_EVEN
-import binascii
 from .constants import *
 from .errors import (
     InformationNotRetrieved,
@@ -28,81 +25,6 @@ from .errors import (
     InvalidEraseLengthError,
 )
 from .utilities import getByteComplement
-
-## SerialFlasher Class
-#   This class represents the object used to interface
-#   with the microcontroller.
-#
-#   methods:
-#
-#   @param serial_port  - the name of the serial port to connect over
-#   @param baud         - baud rate of connection. Use common rates, 1200 - 115200 inclusive.
-#
-#
-#   Flash programming is gonna be fun!
-#   after reset, FPEC block is protected
-#   FLASH_CR not accessible in write mode
-#   two write cycles to unlock
-#       -   1 : Key1 -> FLASH_KEYREG
-#       -   2 : Key2 -> FLASH_KEYREG
-#
-#
-#
-#   Memory Area   Write command   Read command    Erase command       Go command
-#   Flash           Supported       Supported       Supported       Supported
-#   RAM             Supported       Supported       Not supported   Supported
-#   System Memory   Not supported   Supported       Not supported   Not supported
-#   Data Memory     Supported       Supported       Not supported   Not supported
-#   OTP Memory      Supported       Supported       Not supported   Not supported
-#
-#
-# REFACTOR
-#   Trying to do everything in a single class again!
-#
-#   Project structure needs some thinking about
-#
-#   High Level Commands -
-#           Write data to flash storage
-#           Get device information
-#           Get device status, etc
-#
-#   Mid level commands:
-#       Send Bootloader commands
-#       Check Bootloader responses
-#       Configure driver
-#       Read registers
-#       Write registers
-#
-#   Low level commands -
-#       read bytes
-#       write bytes
-#       wait for ack
-#       reset with DTR
-#
-#   Device Model  - high level, abstracted user-friendly methods
-#   Bootloader Interface - mid level, sanity checking, device controller
-#   Serial interface - low level, serial port interface, timeouts etc
-#
-#   Flash memory programming sequence in standard mode:
-#       - check no flash mem operation (see BSY bit in FLASH_SR)
-#       - set the PG bit in FLASH_SR
-#       - perform the 16-bit write at desired address
-#       - wait for BSY bit to be unset
-#       - read the programmed value & verify
-#
-#   Programming the option bytes:
-#       - write KEYS 1 & 2 to the FLASH_OPTKEYR register to set the OPTWRE bit in the FLASH_CR
-#       - check no flash mem operation as above
-#       - set the OPTPG bit in the FLASH_CR
-#       - write the 16-bit value to desired address
-#       - wait for BSY to be unset & verify
-#
-#   Erasing the option bytes:
-#       - unlock the OPTWRE bit in the FLASH_CR as above
-#       - set the OPTER bit in the FLASH_CR
-#       - set the STRT but in the FLASH_CR
-#       - wait for BSY & verify
-#
 
 
 class SerialTool:
