@@ -13,15 +13,15 @@ StmDevice is the higher level functional class allowing user to do more complex 
 
 
 
-            +--------------------+
-            |   StmDevice        |
-            |   - read, write    |
-            |   - program        |
-            |   - erase flash    |
-            +--------------------+
-                    |
-                    | 
-                    |
+                +--------------------+
+                |   StmDevice        |
+                |   - read, write    |
+                |   - program        |
+                |   - erase flash    |
+                +--------------------+
+                            |
+                            | 
+                            |
         -----------------------------------
         |                                 |
         |                                 |

@@ -6,12 +6,6 @@ from collections import namedtuple
 from .errors import DeviceNotSupportedError
 from .utilities import getByteComplement, setBit, clearBit
 
-STM32_F1_FLASH_KEYS = {
-    "RDPRT_KEY": 0x00A5,
-    "KEY_1": 0x45670123,
-    "KEY_2": 0xCDEF89AB,
-}
-
 #! FlashOptionBytes: named tuple used for unpacking
 #  optionbytes register contents
 FlashOptionBytes = namedtuple(
@@ -86,12 +80,6 @@ class Region:
         return address >= self.start and address < self.end
 
 
-class DeviceCommands(Enum):
-    GET_COMMAND = 0
-    VERSION_COMMAND = 1
-    ID_COMMAND = 2
-
-
 class DeviceDensity(Enum):
     DEVICE_TYPE_UNKNOWN = 0
     DEVICE_TYPE_LOW_DENSITY = 1
@@ -101,11 +89,11 @@ class DeviceDensity(Enum):
 
 
 class OptionBytes:
-    """enough fucking about with tuples
+    """!
+    enough messing about with tuples
     make a proper class with functionality
     and stuff. This might have got out of control.
-    But it's almost worth it
-    if only for the practice
+    But it's almost worth it if only for the practice
     """
 
     user: int = 0x00
@@ -191,6 +179,8 @@ class OptionBytes:
         return userbyte
 
     def toBytes(self):
+        self.user = self.generateUserByte()
+
         fob = FlashOptionBytes(
             self.read_protect,
             getByteComplement(self.read_protect),
@@ -226,14 +216,13 @@ class OptionBytes:
         return self.watchdog_type
 
     @watchdogType.setter
-    def watchdogType(self, wdType: bool):
+    def watchdogType(self, watchdog_type: bool):
         """! setter for the watchdog type
         update the user byte too
         @param type - False - Hardware Watchdog
                       True - Software watchdog
         """
-        self.watchdog_type = int(wdType)
-        self.user = self.generateUserByte()
+        self.watchdog_type = int(watchdog_type)
         self.updateRawBytes()
 
     @property
@@ -244,7 +233,6 @@ class OptionBytes:
     @resetOnStop.setter
     def resetOnStop(self, ros: bool):
         self.reset_on_stop = int(ros)
-        self.user = self.generateUserByte()
         self.updateRawBytes()
 
     @property
@@ -255,7 +243,6 @@ class OptionBytes:
     @resetOnStandby.setter
     def resetOnStandby(self, ros: bool):
         self.reset_on_standby = int(ros)
-        self.user = self.generateUserByte()
         self.updateRawBytes()
 
     @property

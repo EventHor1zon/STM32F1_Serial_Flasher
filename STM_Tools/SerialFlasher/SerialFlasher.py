@@ -223,7 +223,7 @@ class SerialTool:
 
         if success:
             # read the response length byte
-            success, rx = self.readDevice(STM32_RSP_LEN_BYTE)
+            success, rx = self.readDevice(STM_RSP_LEN_BYTE)
 
         if success:
             incomming = rx[0]
