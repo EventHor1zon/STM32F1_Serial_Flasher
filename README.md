@@ -76,6 +76,7 @@ Todos
 - Rename files/classes sensibly
 - Format & use pep8 checker
 - Watch for proper case use!
+- Write more extensive tests
 
 
 ## Notes
