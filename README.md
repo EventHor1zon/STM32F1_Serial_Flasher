@@ -121,12 +121,3 @@ Erasing the option bytes:
 - set the STRT but in the FLASH_CR
 - wait for BSY & verify
 
-
-### Application
-
-The application is built with Textual. Pretty fun to use and looks really nice.
-
-![image](./screenshots/stmapp_disconnected.svg) 
-![image](./screenshots/stmapp_connected.svg)
-
-
