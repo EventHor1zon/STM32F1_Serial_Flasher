@@ -1,5 +1,5 @@
 ##
-#  @file  Serial_Flasher.py
+#  @file  serialtool.py
 #
 #   Description: Python module creates an object with methods for
 #   interacting with the STM32 F1 line of microcontrollers via the
