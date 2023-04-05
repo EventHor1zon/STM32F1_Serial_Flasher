@@ -136,5 +136,4 @@ dmypy.json
 ## user added 
 .vscode
 .old
-./docs/html
-./docs/latex
+./docs/**
