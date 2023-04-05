@@ -18,6 +18,11 @@ class STMInterface:
     """
 
     def __init__(self, serialTool: SerialTool = None):
+        """constructor
+
+        Args:
+            serialTool (SerialTool, optional): user-configured SerialTool object. Defaults to None.
+        """
         self.connected = False
         self.serialTool = serialTool
         self.connected = False if serialTool is None else serialTool.getConnectedState()
@@ -28,13 +33,28 @@ class STMInterface:
         pass
 
     def unpackBootloaderVersion(self, value: bytes) -> float:
+        """unpacks the bootloader version from the supplied byte data
+
+        Args:
+            value (bytes): bytes received from id command
+
+        Returns:
+            float: the bootloader version
+        """
         return float(".".join([c for c in str(hex(value[0])).strip("0x")]))
 
     def connectToDevice(self, port: str = "", baud: int = 9600) -> bool:
-        """! Connect to the device over serial
-        @param port - the port to connect to
-        @param baud - the baud rate to connect at
-        @return True on success
+        """Connect to the device at the given port/baud rate
+
+        Args:
+            port (str, optional): Serial port to connect to. Defaults to "".
+            baud (int, optional): Baudrate to connect at. Defaults to 9600.
+
+        Raises:
+            ValueError: Port OR SerialTool object required
+
+        Returns:
+            bool: Success
         """
         if self.serialTool is None:
             if len(port) < 1:
@@ -46,7 +66,17 @@ class STMInterface:
 
     def connectAndReadInfo(
         self, port: str = "", baud: int = 9600, readOptBytes: bool = False
-    ):
+    ) -> bool:
+        """Connect to the device and retrieve the device information
+
+        Args:
+            port (str, optional): Port to connect to. Defaults to "".
+            baud (int, optional): Baud rate to connect at. Defaults to 9600.
+            readOptBytes (bool, optional): Read the option-bytes from the device. Defaults to False.
+
+        Returns:
+            bool: Success
+        """
         success = self.connectToDevice(port, baud)
 
         if success:
@@ -89,7 +119,14 @@ class STMInterface:
         return True
 
     def getDeviceBootloaderVersion(self) -> float:
-        """get the bootloader version as a float"""
+        """Getter for bootloader version
+
+        Raises:
+            InformationNotRetrieved: Bootloader version has not been read
+
+        Returns:
+            float: Bootloader version
+        """
         if not self.device:
             raise InformationNotRetrieved(
                 "Bootloader version not read yet, call self.readDeviceInfo first"
@@ -97,7 +134,14 @@ class STMInterface:
         return self.device.bootloaderVersion
 
     def getDeviceId(self) -> int:
-        """get the device id as an int"""
+        """getter for device ID
+
+        Raises:
+            InformationNotRetrieved: Device ID not read yet
+
+        Returns:
+            int: device ID
+        """
         if not self.device:
             raise InformationNotRetrieved(
                 "Device ID has not been read yet, call self.readDeviceInfo first"
@@ -105,8 +149,14 @@ class STMInterface:
         return self.device.pid
 
     def readOptionBytes(self) -> bool:
-        """reads the flash option bytes and updates the device model's
-        data
+        """reads the flash option-bytes from the device and creates an
+        OptionBytes object from the result
+
+        Raises:
+            DeviceNotConnectedError: Device is not connected
+
+        Returns:
+            bool: Success
         """
         if not self.connected:
             raise DeviceNotConnectedError
@@ -126,10 +176,21 @@ class STMInterface:
         return success
 
     def writeToOptionBytes(self, data: bytearray, reconnect: bool = False) -> bool:
-        """! write data to the option bytes register. This operation causes a
-         device reset to apply changes.
-        @param data - The data to write, must be 16 bytes
-        @reconnect - reconnect to the device after reset
+        """writes data to the device flash option-bytes address. This must be a 16-byte write
+        meeting certain conditions - handled by the OptionBytes class. This
+        command will cause a device reset to apply the option-bytes settings to the device.
+        See the Flash Programming manual for details.
+
+        Args:
+            data (bytearray): data bytes to write
+            reconnect (bool, optional): Reconnect after the operation. Defaults to False.
+
+        Raises:
+            InvalidWriteLengthError: The data length must be 16 bytes
+            InformationNotRetrieved: The device type is unknown, read device information first
+
+        Returns:
+            bool: Success
         """
         if len(data) != 16:
             raise InvalidWriteLengthError("Option byte data must be exactly 16 bytes")
@@ -146,32 +207,32 @@ class STMInterface:
 
         return success
 
-    def readUnprotectFlashMemory(self):
+    def readUnprotectFlashMemory(self) -> bool:
         success = self.serialTool.cmdReadoutUnprotect()
         sleep(0.1)
         self.connected = self.serialTool.reconnect()
         return success
 
-    def readProtectFlashMemory(self):
+    def readProtectFlashMemory(self) -> bool:
         success = self.serialTool.cmdReadoutProtect()
         sleep(0.1)
         self.connected = self.serialTool.reconnect()
         return success
 
-    def writeUnprotectFlashMemory(self):
+    def writeUnprotectFlashMemory(self) -> bool:
         success = self.serialTool.cmdWriteUnprotect()
         sleep(0.1)
         self.connected = self.serialTool.reconnect()
         return success
 
-    def writeProtectFlashMemory(self):
+    def writeProtectFlashMemory(self) -> bool:
         success = self.serialTool.cmdWriteProtect()
         sleep(0.1)
         self.connected = self.serialTool.reconnect()
         return success
 
     def _readFromMem(self, address: int, length: int):
-        """read from memory address - does not sanitize, see
+        """internal method: read from memory address - does not sanitize, see
         methods readFromRam/Flash
         """
         master_rx = bytearray()
@@ -199,7 +260,9 @@ class STMInterface:
         return success, master_rx
 
     def _writeToMem(self, address: int, data: bytearray):
-        # max write length is 256 so do larger writes in multiples
+        """internal method: write to memory address - does not sanitize, see
+        methods writeToRam/Flash
+        """
         length = len(data)
         full_writes = int(length / 256)
         rem = length % 256
@@ -220,8 +283,23 @@ class STMInterface:
                 raise InvalidResponseLengthError(f"Invalid status")
         return success
 
-    def readFromRam(self, address: int, length: int):
-        """read length bytes from address in ram"""
+    def readFromRam(self, address: int, length: int) -> tuple:
+        """read bytes from an address in RAM
+
+        Args:
+            address (int): address to read from
+            length (int): bytes to read
+
+        Raises:
+            DeviceNotConnectedError: Device is not connected
+            InformationNotRetrieved: Device type is unknown
+            InvalidAddressError: Address is not a valid RAM address
+            InvalidReadLengthError: Address read length must be multiple of 4 bytes
+            InvalidReadLengthError: Read would go out of bounds
+
+        Returns:
+            tuple: Success, Recevied data
+        """
         if self.connected is False:
             raise DeviceNotConnectedError
         if self.device is None:
@@ -238,7 +316,15 @@ class STMInterface:
         return self._readFromMem(address, length)
 
     def writeToRam(self, address: int, data: bytearray) -> bool:
-        """write to an address in ram"""
+        """Write data to an address in RAM
+
+        Args:
+            address (int): address to write to
+            data (bytearray): data to write
+
+        Returns:
+            bool: Success
+        """
         if self.connected is False:
             raise DeviceNotConnectedError
         if self.device is None:
@@ -257,6 +343,22 @@ class STMInterface:
         return self._writeToMem(address, data)
 
     def readFromFlash(self, address: int, length: int):
+        """Read data from flash memory
+
+        Args:
+            address (int): address to read from
+            length (int): bytes to read
+
+        Raises:
+            DeviceNotConnectedError: _description_
+            InformationNotRetrieved: _description_
+            InvalidAddressError: _description_
+            InvalidWriteLengthError: _description_
+            InvalidReadLengthError: _description_
+
+        Returns:
+            tuple: Success, data received
+        """
         if self.connected is False:
             raise DeviceNotConnectedError
         if self.device is None:
@@ -275,7 +377,15 @@ class STMInterface:
         return self._readFromMem(address, length)
 
     def writeToFlash(self, address: int, data: bytearray) -> bool:
-        """! write the data to an address in flash memory"""
+        """Write data to flash memory
+
+        Args:
+            address (int): address to write to
+            data (bytearray): data to write
+
+        Returns:
+            bool: Success
+        """
         if self.connected is False:
             raise DeviceNotConnectedError
         if self.device is None:
@@ -293,17 +403,26 @@ class STMInterface:
 
         return self._writeToMem(address, data)
 
-    def globalEraseFlash(self):
-        """! Erase all of the flash pages
-        @return True on success else false
+    def globalEraseFlash(self) -> bool:
+        """erase all flash pages
+
+        Returns:
+            bool: Success
         """
         return self.serialTool.cmdEraseFlashMemory()
 
     def writeApplicationFileToFlash(self, path: str, offset: int = 0) -> bool:
-        """! write a binary application to flash memory
-        rely on the file io exception if invalid file
-        @param path - the path to the file application
-        @return success True|False
+        """write an application to flash memory
+
+        Args:
+            path (str): path to the application file
+            offset (int, optional): offset from flash start. Defaults to 0.
+
+        Raises:
+            InformationNotRetrieved: Device type unknown
+
+        Returns:
+            bool: Success
         """
         success = False
 

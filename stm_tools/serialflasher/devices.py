@@ -1,3 +1,9 @@
+"""@package docstring
+This file contains definitions for the OptionBytes and DeviceType classes. See README for 
+a fuller description.
+
+"""
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -5,7 +11,7 @@ from struct import unpack, pack
 from enum import Enum
 from dataclasses import dataclass
 from collections import namedtuple
-from .errors import DeviceNotSupportedError
+from .errors import DeviceNotSupportedError, InvalidAddressError
 from .utilities import getByteComplement, setBit, clearBit
 
 """FlashOptionBytes: named tuple used for unpacking
@@ -419,8 +425,18 @@ class DeviceType:
     # 32kB * 64 conn
     flash_mem_size: int
 
-    def __init__(self, pid: int, bootloaderVersion: float):
+    def __init__(self, pid: int, bootloaderVersion: float) -> DeviceType:
+        """constructor for the DeviceType
 
+        Args:
+            pid (int): ID read from the device
+            bootloaderVersion (float): bootloader version read from device
+            TODO: Probably don't need BL version for constructor...?
+
+        Raises:
+            DeviceNotSupportedError: Device ID is not currently supported. See README for
+            supported devices
+        """
         # same across most devices, intialise first, overwrite if neccesary
         self.pid = pid
         self.bootloaderVersion = bootloaderVersion
@@ -495,15 +511,24 @@ class DeviceType:
         self.opt_bytes = OptionBytes.FromAttributes()
 
     def updateOptionBytes(self, data: bytearray) -> None:
+        """create the OptionBytes object
+
+        Args:
+            data (bytearray): raw optionbytes data
+        """
         self.opt_bytes = OptionBytes.FromBytes(data)
 
-    def getFlashPageAddress(self, page: int):
-        """! get the flash page start address
-         checks the flash page is valid
-        @param page - the flash page number
-        @return page start address or None
+    def getFlashPageAddress(self, page: int) -> int:
+        """get the address for a particular flash page
+
+        Args:
+            page (int): page index
+
+        Returns:
+            int: page address
         """
-        if page > self.flash_page_num:
-            return None
-        offset = page * self.flash_page_size
-        return self.flash_memory.start + offset
+        if page >= self.flash_page_num:
+            raise InvalidAddressError(
+                f"Invalid flash page requested (max {self.flash_pages_num-1})"
+            )
+        return self.flash_pages[page].start

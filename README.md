@@ -50,6 +50,15 @@ SerialFlasher Class
 This class represents the object used to interface with the microcontroller.
 
 
+## Supported Devices
+
+All STM32F10Xxx devices should be supported
+- stm32f10xxxLowDensity
+- stm32f10xxxMedDensity
+- stm32f10xxxHighDensity
+- stm32f10xxxMedDensityValueLine
+- stm32f10xxxHighDensityValueLine
+- stm32f10xxxXlDensity
 
 ## Refactor/TODOs
 
