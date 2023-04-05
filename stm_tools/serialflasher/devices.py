@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from dataclasses import dataclass
 from struct import unpack, pack
 from enum import Enum
@@ -6,8 +8,9 @@ from collections import namedtuple
 from .errors import DeviceNotSupportedError
 from .utilities import getByteComplement, setBit, clearBit
 
-#! FlashOptionBytes: named tuple used for unpacking
-#  optionbytes register contents
+"""FlashOptionBytes: named tuple used for unpacking
+optionbytes register contents
+"""
 FlashOptionBytes = namedtuple(
     "FlashOptionBytes",
     [
@@ -29,38 +32,6 @@ FlashOptionBytes = namedtuple(
         "nWriteProt3",
     ],
 )
-
-
-@dataclass
-class Register:
-    name: str
-    start: int
-    size: int
-
-
-@dataclass
-class Peripheral:
-    """describes a peripheral on the device"""
-
-    name: str
-    start: int
-    end: int
-
-    @property
-    def size(self) -> int:
-        return self.end - self.start
-
-
-@dataclass
-class PeripheralRegister:
-    """describes a Peripheral register
-    Offset from peripheral start address
-    and value at reset
-    """
-
-    peripheral: Peripheral
-    offset: int
-    reset: int
 
 
 @dataclass
@@ -89,7 +60,7 @@ class DeviceDensity(Enum):
 
 
 class OptionBytes:
-    """!
+    """
     enough messing about with tuples
     make a proper class with functionality
     and stuff. This might have got out of control.
@@ -110,6 +81,7 @@ class OptionBytes:
     write_protect_3: int = 0x00
 
     def __init__(self):
+        """Default Constructor - do not use."""
         pass
 
     @classmethod
@@ -125,7 +97,25 @@ class OptionBytes:
         write_protect_1: int = 0x00,
         write_protect_2: int = 0x00,
         write_protect_3: int = 0x00,
-    ):
+    ) -> OptionBytes:
+        """Constructor - create an option-bytes object from supplied
+        attributes
+
+        Args:
+            read_protect (int, optional): read-protect setting. Defaults to 0x00.
+            watchdog_type (int, optional): watchdog type. Defaults to 0.
+            reset_on_stop (int, optional): reset on stop enabled. Defaults to 1.
+            reset_on_standby (int, optional): reset on standby enabled. Defaults to 0.
+            data_byte_0 (int, optional): User Data byte 0 value . Defaults to 0x00.
+            data_byte_1 (int, optional): User Data byte 1 value. Defaults to 0x00.
+            write_protect_0 (int, optional): wp0. Defaults to 0x00.
+            write_protect_1 (int, optional): wp1. Defaults to 0x00.
+            write_protect_2 (int, optional): wp2. Defaults to 0x00.
+            write_protect_3 (int, optional): wp3. Defaults to 0x00.
+
+        Returns:
+            OptionBytes: the OptionBytes object
+        """
         self = OptionBytes()
         self.read_protect = read_protect
         self.watchdog_type = watchdog_type
@@ -142,10 +132,16 @@ class OptionBytes:
         return self
 
     @classmethod
-    def FromBytes(cls, data: bytearray):
-        """! Create an OptionBytes object from a bytearray of data
-        @param data the bytearray - must be 16 bytes long. Will raise
-                    unpack error if data is badly formatted
+    def FromBytes(cls, data: bytearray) -> OptionBytes:
+        """Constructor - creates an option-bytes object from
+        an array of bytes. Simplifies decoding the option-byte
+        settings read from a device
+
+        Args:
+            data (bytearray): 16-byte array of option-bytes
+
+        Returns:
+            OptionBytes: the option-bytes object
         """
         self = OptionBytes()
         fob = FlashOptionBytes._make(unpack(">16B", data))
@@ -163,7 +159,12 @@ class OptionBytes:
         self.raw_bytes = data
         return self
 
-    def generateUserByte(self):
+    def generateUserByte(self) -> int:
+        """generate the user-byte from watchdog and reset settings
+
+        Returns:
+            int: assembled user-byte
+        """
         userbyte = 0x00
         userbyte = (
             setBit(userbyte, 0) if self.watchdog_type > 0 else clearBit(userbyte, 0)
@@ -178,7 +179,12 @@ class OptionBytes:
         )
         return userbyte
 
-    def toBytes(self):
+    def toBytes(self) -> bytearray:
+        """generate option bytes as raw bytes from attributes
+
+        Returns:
+            bytearray: raw bytes
+        """
         self.user = self.generateUserByte()
 
         fob = FlashOptionBytes(
@@ -203,56 +209,93 @@ class OptionBytes:
         raw = pack(">16B", *[ob for ob in fob])
         return raw
 
-    def updateRawBytes(self):
+    def updateRawBytes(self) -> None:
+        """updates the raw bytes attribute from self attributes"""
         self.raw_bytes = self.toBytes()
 
     @property
     def rawBytes(self) -> bytearray:
+        """raw bytes getter
+
+        Returns:
+            bytearray: option bytes as 16-byte array
+        """
         return self.raw_bytes
 
     @property
-    def watchdogType(self):
-        """! get watchdog type from option bytes"""
+    def watchdogType(self) -> int:
+        """getter for watchdog type
+            TODO: Fix this as a variable type - don't mix
+                    bool/int in getter/setter!
+
+        Returns:
+            int: watchdog type
+        """
         return self.watchdog_type
 
     @watchdogType.setter
     def watchdogType(self, watchdog_type: bool):
-        """! setter for the watchdog type
+        """setter for the watchdog type
         update the user byte too
-        @param type - False - Hardware Watchdog
-                      True - Software watchdog
+        Args:
+            watchdog_type: False - Hardware Watchdog
+                           True - Software watchdog
         """
         self.watchdog_type = int(watchdog_type)
         self.updateRawBytes()
 
     @property
-    def resetOnStop(self):
-        """! get reset on stop setting"""
+    def resetOnStop(self) -> int:
+        """reset on stop getter
+
+        Returns:
+            int: reset on stop enabled
+        """
         return self.reset_on_stop
 
     @resetOnStop.setter
     def resetOnStop(self, ros: bool):
+        """setter for reset on stop
+
+        Args:
+            ros (bool): reset on stop enabled
+        """
         self.reset_on_stop = int(ros)
         self.updateRawBytes()
 
     @property
-    def resetOnStandby(self):
-        """! get reset on standby setting"""
+    def resetOnStandby(self) -> bool:
+        """get reset on standby setting
+        Returns:
+            bool: reset on standby enabled
+        """
         return self.reset_on_standby
 
     @resetOnStandby.setter
     def resetOnStandby(self, ros: bool):
+        """setter for reset on standby
+
+        Args:
+            ros (bool): reset on standby enabled
+        """
         self.reset_on_standby = int(ros)
         self.updateRawBytes()
 
     @property
-    def dataByte0(self):
+    def dataByte0(self) -> int:
+        """_summary_
+
+        Returns:
+            int: data byte 0 value
+        """
         return self.data_byte_0
 
     @dataByte0.setter
     def dataByte0(self, data: int):
-        """! set the data 0 byte - only the first byte is valid
-        @param data value to load (0x00 - 0xFF)
+        """setter for dataByte0
+
+        Args:
+            data (int): data byte value (max 255)
         """
         self.data_byte_0 = data & 0xFF
         self.updateRawBytes()
