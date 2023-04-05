@@ -1,0 +1,76 @@
+\hypertarget{serialflasher__test_8py}{}\section{/home/rich/\+Development/\+Py\+Dev/\+S\+T\+M32\+Tools/\+S\+T\+M32\+F1\+\_\+\+Serial\+\_\+\+Flasher/stm\+\_\+tools/tests/serialflasher\+\_\+test.py File Reference}
+\label{serialflasher__test_8py}\index{/home/rich/\+Development/\+Py\+Dev/\+S\+T\+M32\+Tools/\+S\+T\+M32\+F1\+\_\+\+Serial\+\_\+\+Flasher/stm\+\_\+tools/tests/serialflasher\+\_\+test.\+py@{/home/rich/\+Development/\+Py\+Dev/\+S\+T\+M32\+Tools/\+S\+T\+M32\+F1\+\_\+\+Serial\+\_\+\+Flasher/stm\+\_\+tools/tests/serialflasher\+\_\+test.\+py}}
+
+
+unit tests for the Serial\+Flasher class First attempt at test-\/driven development Write a driver to interface with the S\+TM F1 series of chips Want to provide interface to\+:  
+
+
+\subsection*{Classes}
+\begin{DoxyCompactItemize}
+\item 
+class \hyperlink{classstm__tools_1_1tests_1_1serialflasher__test_1_1SerialFlasherTestCase}{Serial\+Flasher\+Test\+Case}
+\end{DoxyCompactItemize}
+\subsection*{Namespaces}
+\begin{DoxyCompactItemize}
+\item 
+ \hyperlink{namespacestm__tools_1_1tests_1_1serialflasher__test}{stm\+\_\+tools.\+tests.\+serialflasher\+\_\+test}
+\end{DoxyCompactItemize}
+\subsection*{Variables}
+\begin{DoxyCompactItemize}
+\item 
+\hyperlink{namespacestm__tools_1_1tests_1_1serialflasher__test_a76121998433d06c203d1657532f76250}{V\+A\+L\+I\+D\+\_\+\+P\+O\+RT}
+\item 
+\hyperlink{namespacestm__tools_1_1tests_1_1serialflasher__test_a1ebc242e7a86c50a6b683dc73d435fc0}{I\+N\+V\+A\+L\+I\+D\+\_\+\+P\+O\+RT}
+\item 
+\hyperlink{namespacestm__tools_1_1tests_1_1serialflasher__test_ad9f9c99c9f1d74f4a5d2ca206cacb192}{C\+M\+D\+\_\+\+H\+A\+N\+D\+S\+H\+A\+KE}
+\item 
+\hyperlink{namespacestm__tools_1_1tests_1_1serialflasher__test_afa84d84f05c3b4e9a82eed55bc91c729}{S\+T\+M\+\_\+\+A\+CK}
+\item 
+\hyperlink{namespacestm__tools_1_1tests_1_1serialflasher__test_a69ac6aa3b441f56a130f18e70d89529f}{D\+E\+V\+I\+C\+E\+\_\+\+S\+E\+R\+I\+A\+L\+\_\+\+P\+O\+RT}
+\item 
+\hyperlink{namespacestm__tools_1_1tests_1_1serialflasher__test_a18e6583da27755e0b79086411e0932a6}{D\+E\+V\+I\+C\+E\+\_\+\+S\+E\+R\+I\+A\+L\+\_\+\+B\+A\+UD}
+\item 
+\hyperlink{namespacestm__tools_1_1tests_1_1serialflasher__test_a59d8d0899dec790143b7694e3ba7869e}{D\+E\+V\+I\+C\+E\+\_\+\+S\+E\+R\+I\+A\+L\+\_\+\+W\+R\+T\+\_\+\+T\+I\+M\+E\+O\+U\+T\+\_\+S}
+\item 
+\hyperlink{namespacestm__tools_1_1tests_1_1serialflasher__test_a18b0d067d54847c27a1b1f67a69fd4af}{D\+E\+V\+I\+C\+E\+\_\+\+S\+E\+R\+I\+A\+L\+\_\+\+R\+D\+\_\+\+T\+I\+M\+E\+O\+U\+T\+\_\+S}
+\item 
+\hyperlink{namespacestm__tools_1_1tests_1_1serialflasher__test_af2963bac2a379526db940520efa35be7}{D\+E\+V\+I\+C\+E\+\_\+\+O\+P\+T\+I\+O\+N\+\_\+\+B\+Y\+T\+E\+S\+\_\+\+L\+EN}
+\item 
+\hyperlink{namespacestm__tools_1_1tests_1_1serialflasher__test_a57b992b4bb523a8c3196c0a250f5ed87}{D\+E\+V\+I\+C\+E\+\_\+\+S\+R\+A\+M\+\_\+\+S\+T\+A\+R\+T\+\_\+\+A\+D\+D\+R\+E\+SS}
+\item 
+\hyperlink{namespacestm__tools_1_1tests_1_1serialflasher__test_a4209a37586d60a3226b7bfc01faf8efa}{D\+E\+V\+I\+C\+E\+\_\+\+S\+R\+A\+M\+\_\+\+B\+O\+O\+T\+L\+O\+A\+D\+E\+R\+\_\+\+A\+D\+D\+R\+E\+SS}
+\item 
+\hyperlink{namespacestm__tools_1_1tests_1_1serialflasher__test_ae150c554225b93e1684f5845ea17e055}{D\+E\+V\+I\+C\+E\+\_\+\+A\+D\+D\+R\+\_\+\+O\+P\+T\+I\+O\+N\+B\+Y\+T\+ES}
+\item 
+\hyperlink{namespacestm__tools_1_1tests_1_1serialflasher__test_a65284c078af378de62bae59ea3f26d55}{D\+E\+V\+I\+C\+E\+\_\+\+I\+D\+\_\+\+E\+X\+P\+E\+C\+T\+E\+D\+\_\+\+B\+Y\+T\+ES}
+\begin{DoxyCompactList}\small\item\em may have to refine this based on testing device! \end{DoxyCompactList}\item 
+\hyperlink{namespacestm__tools_1_1tests_1_1serialflasher__test_a6dc3bf26591dbf1524ea88bea719f0df}{D\+E\+V\+I\+C\+E\+\_\+\+V\+A\+L\+I\+D\+\_\+\+B\+O\+O\+T\+L\+O\+A\+D\+E\+R\+\_\+\+V\+E\+R\+S\+I\+ON}
+\item 
+\hyperlink{namespacestm__tools_1_1tests_1_1serialflasher__test_a1cc886c6cbb9f9d5e24d9a50e7e6f4d1}{D\+E\+V\+I\+C\+E\+\_\+\+V\+A\+L\+I\+D\+\_\+\+C\+M\+DS}
+\item 
+\hyperlink{namespacestm__tools_1_1tests_1_1serialflasher__test_a01f375b415f66f35dfba69587829cd16}{S\+F\+\_\+\+T\+E\+S\+T\+\_\+\+R\+E\+A\+D\+\_\+\+A\+D\+D\+R\+\_\+\+O\+P\+T\+B\+Y\+T\+E\+S\+\_\+\+L\+EN}
+\item 
+\hyperlink{namespacestm__tools_1_1tests_1_1serialflasher__test_a500ed3fc7e37f3d6ef1aa3c1520e5a82}{S\+F\+\_\+\+T\+E\+S\+T\+\_\+\+D\+U\+M\+M\+Y\+\_\+\+D\+A\+TA}
+\item 
+\hyperlink{namespacestm__tools_1_1tests_1_1serialflasher__test_abb4df72148579487a6a4cca767c149fa}{S\+F\+\_\+\+T\+E\+S\+T\+\_\+\+F\+L\+A\+S\+H\+\_\+\+P\+A\+G\+E\+S\+\_\+\+E\+R\+A\+SE}
+\item 
+\hyperlink{namespacestm__tools_1_1tests_1_1serialflasher__test_a8393d2c2c4b44a58c07eed3b14b2f6ad}{S\+F\+\_\+\+T\+E\+S\+T\+\_\+\+W\+R\+I\+T\+E\+\_\+\+P\+R\+O\+T\+E\+C\+T\+\_\+\+S\+E\+C\+T\+O\+RS}
+\item 
+\hyperlink{namespacestm__tools_1_1tests_1_1serialflasher__test_ae1c42892dad519b503ef9a55a93aa16e}{S\+F\+\_\+\+T\+E\+S\+T\+\_\+\+S\+A\+M\+P\+L\+E\+\_\+\+B\+Y\+T\+E\+S\+\_\+\+N\+O\+\_\+\+C\+H\+E\+C\+K\+S\+UM}
+\begin{DoxyCompactList}\small\item\em checksum8 X\+OR from \href{https://www.scadacore.com/tools/programming-calculators/online-checksum-calculator/}{\tt https\+://www.\+scadacore.\+com/tools/programming-\/calculators/online-\/checksum-\/calculator/} \end{DoxyCompactList}\item 
+\hyperlink{namespacestm__tools_1_1tests_1_1serialflasher__test_afc86f38307068be6936b96ab60ddc7af}{S\+F\+\_\+\+T\+E\+S\+T\+\_\+\+S\+A\+M\+P\+L\+E\+\_\+\+B\+Y\+T\+E\+S\+\_\+\+W\+\_\+\+C\+H\+E\+C\+K\+S\+UM}
+\end{DoxyCompactItemize}
+
+
+\subsection{Detailed Description}
+unit tests for the Serial\+Flasher class First attempt at test-\/driven development Write a driver to interface with the S\+TM F1 series of chips Want to provide interface to\+: 
+
+
+\begin{DoxyItemize}
+\item Connect with the device over serial U\+A\+RT
+\item Read the device information
+\item Read from a memory address
+\item Write to a memory address
+\item Lock/\+Unlock Flash sections
+\item etc. 
+\end{DoxyItemize}
