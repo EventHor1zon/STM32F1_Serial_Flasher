@@ -2,19 +2,27 @@
 A python module for exploring STM32 F1 devices using the STM Bootloader's Serial interface
 
 
-Some Planning...
+## Brief
+
+This tool uses PySerial to interface with an STM32F1 board using a cheap serial to USB converter tool (or the on-board serial->usb chip if present) in order to speak to the device's bootloader. From there the user can read and write flash memory, lock and unlock read/write access to memory regions and get device information.
+
+The module is split over three main objects. SerialTool controls the low-level serial interface with the device, sending bootloader handshakes, commands, handling checksums and receiving raw bytes.
+
+DeviceType is a data structure used to hold information about the connected device, taken largely from the STM32F10X datasheet. Their is also an OptionBytes class which helps create a model of the option bytes - these contain some useful device functionality, but have to be handled correctly. The OptionBytes class helps to read or write raw option bytes to/from the device, simplifying the process. The OptionBytes object is stored as an attribute of DeviceType, but is only populated by reading the option bytes or setting the attribute to a user-generated OptionBytes object.  
+
+StmInterface is a higher level interaction which uses a SerialTool object to build a DeviceType model of the device. This class allows reading device settings, mass erasing flash pages, writing applications to flash/ram, configuring the device's option bytes and reading program data from the flash.
 
 
-SerialTool is the low-level bootloader interface to the device (via PySerial object)
+### Classes
 
 DeviceDescriptor describes the connected device's characteristics after reading
 
-StmDevice is the higher level functional class allowing user to do more complex operations without worrying about the low-level implementation
+StmInterface is the higher level functional class allowing user to do more complex operations without worrying about the low-level implementation
 
 
 
                 +--------------------+
-                |   StmDevice        |
+                |   StmInterface     |
                 |   - read, write    |
                 |   - program        |
                 |   - erase flash    |
