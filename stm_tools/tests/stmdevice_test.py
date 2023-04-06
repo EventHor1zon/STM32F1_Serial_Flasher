@@ -1,4 +1,4 @@
-##
+#
 # @file stmdevice_test.py
 # @brief tests for the stmdevice.py file
 #
@@ -125,7 +125,7 @@ class STMInterfaceTestCase(unittest.TestCase):
         with self.assertRaises(InformationNotRetrieved):
             self.stm.getDeviceId()
 
-    ### Test writing and reading to RAM ###
+    ## Test writing and reading to RAM ##
 
     def testWriteDataToRam(self):
         """test we can write a byte to RAM"""
@@ -165,7 +165,7 @@ class STMInterfaceTestCase(unittest.TestCase):
         self.assertTrue(success)
         self.assertEqual(rx, bytearray([0x01, 0x02, 0x03, 0x04]))
 
-    #### Test using the Flash and option bytes ###
+    ## Test using the Flash and option bytes ##
 
     def testReadOptionBytesData(self):
         success = self.stm.readDeviceInfo()

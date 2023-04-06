@@ -1,4 +1,4 @@
-## @file serialflasher_test.py
+#   @file serialflasher_test.py
 #
 #   unit tests for the SerialFlasher class
 #   First attempt at test-driven development
@@ -10,8 +10,6 @@
 #       - Write to a memory address
 #       - Lock/Unlock Flash sections
 #       - etc.
-#
-############################################
 
 
 import unittest
@@ -40,7 +38,7 @@ DEVICE_SRAM_START_ADDRESS = 0x20004000
 DEVICE_SRAM_BOOTLOADER_ADDRESS = 0x20000000
 DEVICE_ADDR_OPTIONBYTES = 0x1FFFF800
 
-## may have to refine this based on testing device!
+# may have to refine this based on testing device!
 DEVICE_ID_EXPECTED_BYTES = b"\x04\x10"
 DEVICE_VALID_BOOTLOADER_VERSION = 11
 
@@ -65,7 +63,7 @@ SF_TEST_READ_ADDR_OPTBYTES_LEN = 16
 SF_TEST_DUMMY_DATA = bytearray([0x41, 0x42, 0x43, 0x44])
 SF_TEST_FLASH_PAGES_ERASE = bytearray([0, 1, 2, 3, 4])
 SF_TEST_WRITE_PROTECT_SECTORS = bytearray([0x01, 0x02])
-## checksum8 XOR from https://www.scadacore.com/tools/programming-calculators/online-checksum-calculator/
+# checksum8 XOR from https://www.scadacore.com/tools/programming-calculators/online-checksum-calculator/
 SF_TEST_SAMPLE_BYTES_NO_CHECKSUM = bytearray([0xA1, 0xA2, 0xA3])
 SF_TEST_SAMPLE_BYTES_W_CHECKSUM = bytearray([0xA1, 0xA2, 0xA3, 0xA0])
 
@@ -212,7 +210,7 @@ class SerialFlasherTestCase(unittest.TestCase):
         rx_row_1 = rx[4:8]
         rx_row_2 = rx[8:12]
         rx_row_3 = rx[12:16]
-        ## no need to try them all
+        # no need to try them all
         self.assertEqual(rx_row_0[0], (rx_row_0[1] ^ 0xFF))
         self.assertEqual(rx_row_1[2], (rx_row_1[3] ^ 0xFF))
 

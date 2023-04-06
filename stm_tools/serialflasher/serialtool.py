@@ -1,11 +1,9 @@
-##
-#  @file  serialtool.py
-#
-#   Description: Python module creates an object with methods for
-#   interacting with the STM32 F1 line of microcontrollers via the
-#   Bootloader's serial interface.
-#
-
+"""
+ file  serialtool.py
+ Description: Python module creates an object with methods for
+ interacting with the STM32 F1 line of microcontrollers via the
+ Bootloader's serial interface.
+"""
 
 from time import sleep
 import sys
@@ -25,7 +23,7 @@ from .utilities import getByteComplement
 
 class SerialTool:
     """SerialTool
-        This class should:
+    This class should:
     - provide access to the underlying PySerial object
     - send and receive bootloader commands
     - provide functions to read/write data to memory addresses
@@ -37,7 +35,7 @@ class SerialTool:
 
     connected = False
 
-    ##=========== UTILITY FUNCTIONS =========##
+    # =========== UTILITY FUNCTIONS =========#
 
     @staticmethod
     def validBaud(baud: int) -> bool:
@@ -104,7 +102,7 @@ class SerialTool:
         self.serial.parity = PARITY_EVEN
         self.serial.setDTR(False)
 
-    ##============ GETTERS/SETTERS ============##
+    # ============ GETTERS/SETTERS ============#
 
     def getBaud(self) -> int:
         """return the baud rate of the serial object
@@ -174,7 +172,7 @@ class SerialTool:
         """
         return self.connected
 
-    ##============= Serial Interaction =========#
+    # ============= Serial Interaction =========#
 
     def writeDevice(self, data: bytearray) -> bool:
         """write bytes over the serial interface
@@ -248,7 +246,7 @@ class SerialTool:
                 f"Invalid response byte received: {hex(rx[0])}"
             )
 
-    ##============== Device Interaction =========##
+    # ============== Device Interaction =========#
 
     def connect(self) -> bool:
         """connect to the STM chip bootloader by sending the
@@ -279,7 +277,7 @@ class SerialTool:
         self.serial.open()
         return self.connect()
 
-    ##=============== DEVICE COMMANDS ==========##
+    # =============== DEVICE COMMANDS ==========#
 
     def writeCommand(self, data: bytearray, length: int) -> tuple:
         """Write a command to the device
@@ -574,8 +572,8 @@ class SerialTool:
         if success:
             success = self.writeAndWaitAck(tx_data)
 
-        ## once the write protect command is complete, the device
-        ## resets, so set connected to false
+        # once the write protect command is complete, the device
+        # resets, so set connected to false
         if success:
             self.connected = False
 
@@ -672,7 +670,7 @@ class SerialTool:
         if success:
             success = self.writeAndWaitAck(address_bytes)
 
-        ## we are no longer connected to the bootloader
+        # we are no longer connected to the bootloader
         if success:
             self.connected = False
 

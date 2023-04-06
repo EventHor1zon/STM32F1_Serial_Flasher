@@ -1,4 +1,4 @@
-##! Tests for the OptionBytes class
+#! Tests for the OptionBytes class
 #
 # Test the loading/unloading of bytes
 # against a known good option bytes contents

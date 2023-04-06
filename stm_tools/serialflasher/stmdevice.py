@@ -80,7 +80,7 @@ class STMInterface:
         success = self.connectToDevice(port, baud)
 
         if success:
-            ## clear the device info if it exists
+            # clear the device info if it exists
             if self.device is not None:
                 self.device = None
             self.readDeviceInfo()

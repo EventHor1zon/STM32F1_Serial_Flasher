@@ -1,11 +1,3 @@
-##
-## @file constants.py
-#  @description contains constants used by the STM bootloader
-#
-#
-##
-
-
 STM_RSP_LEN_BYTE = 1
 
 STM_CMD_HANDSHAKE = 0x7F

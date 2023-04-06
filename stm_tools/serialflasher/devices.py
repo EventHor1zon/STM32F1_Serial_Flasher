@@ -1,5 +1,4 @@
-"""@package docstring
-This file contains definitions for the OptionBytes and DeviceType classes. See README for 
+"""This file contains definitions for the OptionBytes and DeviceType classes. See README for 
 a fuller description.
 
 """
@@ -14,9 +13,6 @@ from collections import namedtuple
 from .errors import DeviceNotSupportedError, InvalidAddressError
 from .utilities import getByteComplement, setBit, clearBit
 
-"""FlashOptionBytes: named tuple used for unpacking
-optionbytes register contents
-"""
 FlashOptionBytes = namedtuple(
     "FlashOptionBytes",
     [
@@ -52,7 +48,7 @@ class Region:
     def size(self):
         return self.end - self.start
 
-    def is_valid(self, address: int):
+    def is_valid(self, address: int) -> bool:
         """return True if address is in range start -> end"""
         return address >= self.start and address < self.end
 
@@ -66,8 +62,7 @@ class DeviceDensity(Enum):
 
 
 class OptionBytes:
-    """
-    enough messing about with tuples
+    """Enough messing about with tuples
     make a proper class with functionality
     and stuff. This might have got out of control.
     But it's almost worth it if only for the practice
@@ -87,7 +82,7 @@ class OptionBytes:
     write_protect_3: int = 0x00
 
     def __init__(self):
-        """Default Constructor - do not use."""
+        """Default Constructor - do not use"""
         pass
 
     @classmethod
@@ -104,7 +99,7 @@ class OptionBytes:
         write_protect_2: int = 0x00,
         write_protect_3: int = 0x00,
     ) -> OptionBytes:
-        """Constructor - create an option-bytes object from supplied
+        """constructor - create an option-bytes object from supplied
         attributes
 
         Args:
@@ -240,7 +235,7 @@ class OptionBytes:
         return self.watchdog_type
 
     @watchdogType.setter
-    def watchdogType(self, watchdog_type: bool):
+    def watchdogType(self, watchdog_type: bool) -> None:
         """setter for the watchdog type
         update the user byte too
         Args:
@@ -260,7 +255,7 @@ class OptionBytes:
         return self.reset_on_stop
 
     @resetOnStop.setter
-    def resetOnStop(self, ros: bool):
+    def resetOnStop(self, ros: bool) -> None:
         """setter for reset on stop
 
         Args:
@@ -278,18 +273,18 @@ class OptionBytes:
         return self.reset_on_standby
 
     @resetOnStandby.setter
-    def resetOnStandby(self, ros: bool):
+    def resetOnStandby(self, ros: bool) -> None:
         """setter for reset on standby
 
         Args:
-            ros (bool): reset on standby enabled
+            bool: reset on standby enabled
         """
         self.reset_on_standby = int(ros)
         self.updateRawBytes()
 
     @property
     def dataByte0(self) -> int:
-        """_summary_
+        """getter for data byte 0
 
         Returns:
             int: data byte 0 value
@@ -297,21 +292,26 @@ class OptionBytes:
         return self.data_byte_0
 
     @dataByte0.setter
-    def dataByte0(self, data: int):
+    def dataByte0(self, data: int) -> None:
         """setter for dataByte0
 
         Args:
-            data (int): data byte value (max 255)
+            int: data byte value (max 255)
         """
         self.data_byte_0 = data & 0xFF
         self.updateRawBytes()
 
     @property
-    def dataByte1(self):
+    def dataByte1(self) -> int:
+        """getter for data byte 1
+
+        Returns:
+            int: data byte 1
+        """
         return self.data_byte_1
 
     @dataByte1.setter
-    def dataByte1(self, data: int):
+    def dataByte1(self, data: int) -> None:
         """! set the data 0 byte - only the first byte is valid
         @param data value to load (0x00 - 0xFF)
         """
@@ -320,10 +320,20 @@ class OptionBytes:
 
     @property
     def readProtect(self) -> bool:
+        """getter for read protect setting
+
+        Returns:
+            bool: read protect enabled
+        """
         return False if self.read_protect == 0xA5 else True
 
     @readProtect.setter
-    def readProtect(self, enabled: bool):
+    def readProtect(self, enabled: bool) -> None:
+        """setter for read protect setting
+
+        Args:
+            enabled (bool): read protect enable
+        """
         if enabled:
             self.read_protect = 0
         else:
@@ -331,56 +341,96 @@ class OptionBytes:
         self.updateRawBytes()
 
     @property
-    def writeProtect0(self):
+    def writeProtect0(self) -> int:
+        """getter for write protect section 0
+
+        Returns:
+            int: write protect setting
+        """
         return self.write_protect_0
 
     @writeProtect0.setter
-    def writeProtect0(self, data: int):
+    def writeProtect0(self, data: int) -> None:
+        """setter for write protect 0
+
+        Args:
+            data (int): write protect 0 byte
+        """
         self.write_protect_0 = data & 0xFF
         self.updateRawBytes()
 
     @property
     def writeProtect1(self):
+        """getter for write protect section 1
+
+        Returns:
+            int: write protect setting
+        """
         return self.write_protect_1
 
     @writeProtect1.setter
     def writeProtect1(self, data: int):
+        """setter for write protect 1
+
+        Args:
+            data (int): write protect 0 byte
+        """
         self.write_protect_1 = data & 0xFF
         self.updateRawBytes()
 
     @property
     def writeProtect2(self):
+        """getter for write protect section 2
+
+        Returns:
+            int: write protect setting
+        """
         return self.write_protect_2
 
     @writeProtect2.setter
     def writeProtect2(self, data: int):
+        """setter for write protect 2
+
+        Args:
+            data (int): write protect 0 byte
+        """
         self.write_protect_2 = data & 0xFF
         self.updateRawBytes()
 
     @property
     def writeProtect3(self):
+        """getter for write protect section 3
+
+        Returns:
+            int: write protect setting
+        """
         return self.write_protect_3
 
     @writeProtect3.setter
     def writeProtect3(self, data: int):
+        """setter for write protect 3
+
+        Args:
+            data (int): write protect 0 byte
+        """
         self.write_protect_3 = data & 0xFF
         self.updateRawBytes()
 
-    def enableWriteProtect(self):
+    def enableWriteProtect(self) -> None:
         self.write_protect_0 = 0
         self.write_protect_1 = 0
         self.write_protect_2 = 0
         self.write_protect_3 = 0
         self.updateRawBytes()
 
-    def disableWriteProtect(self):
+    def disableWriteProtect(self) -> None:
         self.write_protect_0 = 0xFF
         self.write_protect_1 = 0xFF
         self.write_protect_2 = 0xFF
         self.write_protect_3 = 0xFF
         self.updateRawBytes()
 
-    def dumpOptionBytes(self):
+    def dumpOptionBytes(self) -> None:
         print(f"nUser [{getByteComplement(self.user)}] user [{self.user}]", end="\t")
         print(f"Wdt type: {'software' if self.watchdog_type else 'hardware'}", end="\t")
         print(f"ReadProtect: {hex(self.readProtect)}")
@@ -388,7 +438,7 @@ class OptionBytes:
         print("Raw: ", end="\t")
         print(self.raw_bytes)
 
-    def rawBytesToString(self):
+    def rawBytesToString(self) -> None:
         output = ""
         for i in range(16):
             output += f"{hex(self.raw_bytes[i]).strip('0x').zfill(2).upper()} "
@@ -507,7 +557,7 @@ class DeviceType:
         # so use region rather than Register
         self.flash_option_bytes = Region("OptionBytes", 0x1FFFF800, 0x1FFF800 + 16)
 
-        ## fill this in on demand
+        # fill this in on demand
         self.opt_bytes = OptionBytes.FromAttributes()
 
     def updateOptionBytes(self, data: bytearray) -> None:
