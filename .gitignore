@@ -132,6 +132,11 @@ dmypy.json
 # Pyre type checker
 .pyre/
 
+# Documentation Sphinx generated
+source/
+Makefile
+*.bat
+# docs/
 
 ## user added 
 .vscode
