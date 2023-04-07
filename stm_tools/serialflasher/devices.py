@@ -45,11 +45,23 @@ class Region:
     end: int
 
     @property
-    def size(self):
+    def size(self) -> int:
+        """get size of region in bytes
+
+        Returns:
+            int: size in bytes
+        """
         return self.end - self.start
 
     def is_valid(self, address: int) -> bool:
-        """return True if address is in range start -> end"""
+        """return True if address is in range start -> end
+
+        Args:
+            address (int): address to validate
+
+        Returns:
+            bool: is_valid
+        """
         return address >= self.start and address < self.end
 
 
@@ -103,9 +115,9 @@ class OptionBytes:
         attributes
 
         Args:
-            read_protect (int, optional): read-protect setting. Defaults to 0x00.
-            watchdog_type (int, optional): watchdog type. Defaults to 0.
-            reset_on_stop (int, optional): reset on stop enabled. Defaults to 1.
+            read_protect (int, optional): read-protect setting. Defaults to 0x00,
+            watchdog_type (int, optional): watchdog type. Defaults to 0,
+            reset_on_stop (int, optional): reset on stop enabled. Defaults to 1,
             reset_on_standby (int, optional): reset on standby enabled. Defaults to 0.
             data_byte_0 (int, optional): User Data byte 0 value . Defaults to 0x00.
             data_byte_1 (int, optional): User Data byte 1 value. Defaults to 0x00.
@@ -266,18 +278,19 @@ class OptionBytes:
 
     @property
     def resetOnStandby(self) -> bool:
-        """get reset on standby setting
+        """geetter for reset on standby
+
         Returns:
-            bool: reset on standby enabled
+            bool: enabled
         """
         return self.reset_on_standby
 
     @resetOnStandby.setter
     def resetOnStandby(self, ros: bool) -> None:
-        """setter for reset on standby
+        """reset on standby enabled
 
         Args:
-            bool: reset on standby enabled
+            ros (bool): enabled
         """
         self.reset_on_standby = int(ros)
         self.updateRawBytes()

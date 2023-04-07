@@ -4,7 +4,7 @@ from .utilities import unpack16BitInt
 from .constants import *
 from .errors import *
 from .devices import DeviceDensity, DeviceType
-from .SerialFlasher import SerialTool
+from .serialtool import SerialTool
 
 
 class STMInterface:

@@ -23,13 +23,24 @@ from .utilities import getByteComplement
 
 class SerialTool:
     """SerialTool
+
     This class should:
-    - provide access to the underlying PySerial object
-    - send and receive bootloader commands
-    - provide functions to read/write data to memory addresses
-    - contain various utility functions for use in device commands
-    - handle handshake & initial serial connection
-    - return the bytearrays read from the device
+        * provide access to the underlying PySerial object
+        * send and receive bootloader commands
+        * provide functions to read/write data to memory addresses
+        * contain various utility functions for use in device commands
+        * handle handshake & initial serial connection
+        * return the bytearrays read from the device
+
+    Args:
+        * port (str, optional): serial port to connect to. Defaults to None.
+        * baud (int, optional): baudrate to connect with. Defaults to 9600.
+        * serial (Serial, optional): user can supply a configured pyserial Serial object for more
+        granular control of the interface. If the Serial object is not supplied then
+        the port __must__ be supplied. Defaults to None.
+
+    Raises:
+        TypeError: Must supply a serial port OR a configured Serial object
 
     """
 
@@ -67,8 +78,8 @@ class SerialTool:
         )
 
     def reset(self):
-        """!
-        reset the device with
+        """
+        reset the device using the DTR pin of the serial adaptor
         """
         print("Resetting device via DTR pin")
         self.serial.setDTR(1)
@@ -79,11 +90,11 @@ class SerialTool:
         """the contructor for SerialTool
 
         Args:
-            port (str, optional): serial port to connect to. Defaults to None.
-            baud (int, optional): baudrate to connect with. Defaults to 9600.
-            serial (Serial, optional): user can supply a configured pyserial Serial object for more
-            granular control of the interface. If the Serial object is not supplied then
-            the port __must__ be supplied. Defaults to None.
+            *port (str, optional): serial port to connect to. Defaults to None.
+            *baud (int, optional): baudrate to connect with. Defaults to 9600.
+            *serial (Serial, optional): user can supply a configured pyserial Serial object for more
+            *granular control of the interface. If the Serial object is not supplied then
+            *the port __must__ be supplied. Defaults to None.
 
         Raises:
             TypeError: Must supply a serial port OR a configured Serial object
@@ -133,9 +144,10 @@ class SerialTool:
         return True
 
     def getPort(self) -> str:
-        """returns the configured serial port
+        """get port
+
         Returns:
-            str -- port
+            str: port name
         """
         return self.serial.port
 
@@ -286,8 +298,8 @@ class SerialTool:
                   from the first byte of command?
 
         Args:
-            data (bytearray): the command & any arguments, plus checksum byte
-            length (int): expected length of the response
+            * data (bytearray): the command & any arguments, plus checksum byte
+            * length (int): expected length of the response
 
         Raises:
             InvalidResponseLengthError: Invalid response length
@@ -372,8 +384,8 @@ class SerialTool:
         """Send the read memory command
 
         Args:
-            address (int): address to read from
-            length (int): number of bytes to read
+            * address (int): address to read from
+            * length (int): number of bytes to read
 
         Raises:
             InvalidReadLengthError: an invalid number of bytes was requested
