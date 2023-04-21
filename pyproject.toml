@@ -1,0 +1,20 @@
+[tool.poetry]
+name = "stm32-serialtools"
+version = "0.1.0"
+description = "A small set of tools for interacting with the STM32F10x Bootloader over UART"
+authors = ["EventHor1zon <3v3ntH0r1z0n@protonmail.com>"]
+readme = "README.md"
+packages = [{include = "stm_tools"}]
+
+[tool.poetry.dependencies]
+python = "^3.8"
+pyserial = "^3.5"
+
+[tool.poetry.group.dev.dependencies]
+pylint = "^2.17.2"
+black = "^23.3.0"
+Sphinx = "^6.1.3"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
