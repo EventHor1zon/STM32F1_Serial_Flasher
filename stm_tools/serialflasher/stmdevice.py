@@ -1,9 +1,8 @@
-from struct import unpack
 from time import sleep
 from .utilities import unpack16BitInt
 from .constants import *
 from .errors import *
-from .devices import DeviceDensity, DeviceType
+from .devices import DeviceType
 from .serialtool import SerialTool
 
 
