@@ -29,6 +29,10 @@ share/python-wheels/
 .installed.cfg
 *.egg
 MANIFEST
+docs/_sources/
+docs/_static/
+docs/.doctrees
+docs/.buildinfo
 
 # PyInstaller
 #  Usually these files are written by a python script from a template
@@ -141,4 +145,5 @@ Makefile
 ## user added 
 .vscode
 .old
-./docs/**
+docs/**
+source/
