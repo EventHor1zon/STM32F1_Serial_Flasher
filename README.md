@@ -42,36 +42,15 @@ The DeviceType model provides specific information about the device, including b
 The OptionBytes model provides a way to generate a data model from the raw flash option bytes content, and also allows the user to create a model from the attributes they wish to set, or modify the existing configuration and creating a new valid set bytes to write to the flash option byte registers. It also makes the single-bit settings easier to handle.
 
 
-### Classes
+### Picture to add some colour
 
-DeviceDescriptor describes the connected device's characteristics after reading
-
-StmInterface is the higher level functional class allowing user to do more complex operations without worrying about the low-level implementation
+![stmtools](./docs/STM32Interface_graph.png)
 
 
 
-                +--------------------+
-                |   StmInterface     |
-                |   - read, write    |
-                |   - program        |
-                |   - erase flash    |
-                +--------------------+
-                            |
-                            | 
-                            |
-        -----------------------------------
-        |                                 |
-        |                                 |
-    +--------------+                +-------------+
-    | SerialTool   |                | DeviceDescr |
-    | - BL commands|                | - Type      |
-    | - Serial Ifc |                | - ValidCmds |
-    |              |                | - Flash sz  |
-    +--------------+                +-------------+
+## Tests
 
-
-
-This tool should be written with unittests - these unittests are run against the actual device. Because it's fun. And reduces the chances of making an error in the mock, or interpreting the Datasheet. Or Errata in the datasheet. Or writing tests for an invalid bootloader version. 
+This tool is written with unittests - for the SerialTool and STMInterface tests, these unittests are run against the actual device. Because it's fun. And reduces the chances of making an error in the mock, or interpreting the Datasheet. Or Errata in the datasheet. Or writing tests for an invalid bootloader version. More tests on the todo list. 
 
 
 
@@ -112,9 +91,7 @@ Todos
 - Use UART printing image to test application upload
 
 
-
 ## Bootloader Memory Access
-
 
 | Memory Area | Write command | Read command | Erase command | Go command |
 | ----------- | ------------- | ------------ | ------------- | ---------- |
@@ -157,6 +134,6 @@ Erasing the option bytes:
 
 Good documentation available on the STM Website. Special shoutout to the following documents:
 
-- AN2606 STM32 Microcontroller system memory boot mode
-- AN3155 USART protocol used in the STM32 bootloader
-- PM0075 STM32F10xxx Flash memory microcontrollers
+- __AN2606__ STM32 Microcontroller system memory boot mode
+- __AN3155__ USART protocol used in the STM32 bootloader
+- __PM0075__ STM32F10xxx Flash memory microcontrollers
