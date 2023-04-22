@@ -7,10 +7,6 @@ import sys
 
 
 def main():
-    pass
-
-
-if __name__ == "__main__":
     fmt = ">H"
     serial = Serial(
         "/dev/ttyUSB0",
@@ -181,3 +177,7 @@ if __name__ == "__main__":
     print(f"{Wrp3}|{nWrp3} - {Wrp2}|{nWrp2}")
 
     sf.reset()
+
+
+if __name__ == "__main__":
+    main()

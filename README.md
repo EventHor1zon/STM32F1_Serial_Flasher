@@ -6,11 +6,11 @@ A python module for exploring STM32 F1 devices using the STM Bootloader's Serial
 
 This tool uses PySerial to interface with an STM32F1 board using a cheap serial to USB converter tool (or the on-board serial->usb chip if present) in order to speak to the device's bootloader. From there the user can read and write flash memory, lock and unlock read/write access to memory regions and get device information.
 
-The module is split over three main objects. SerialTool controls the low-level serial interface with the device, sending bootloader handshakes, commands, handling checksums and receiving raw bytes.
+The module's functionality is split over several classes. The SerialTool class controls the low-level serial interface with the device, sending bootloader handshakes, connecting, sending bootloader commands, handling checksums and receiving raw bytes in response.
 
-DeviceType is a data structure used to hold information about the connected device, taken largely from the STM32F10X datasheet. Their is also an OptionBytes class which helps create a model of the option bytes - these contain some useful device functionality, but have to be handled correctly. The OptionBytes class helps to read or write raw option bytes to/from the device, simplifying the process. The OptionBytes object is stored as an attribute of DeviceType, but is only populated by reading the option bytes or setting the attribute to a user-generated OptionBytes object.  
+The DeviceType class is a data structure used to hold information about the connected device, taken largely from the STM32F10X datasheet. Their is also an OptionBytes class which helps create a model of the option bytes - these contain some useful device functionality, but have to be handled correctly. The OptionBytes class helps to read or write raw option bytes to/from the device, simplifying the process. The OptionBytes object is stored as an attribute of DeviceType, and is populated using a 16-byte bytearray or setting the attributes manually. 
 
-StmInterface is a higher level interaction which uses a SerialTool object to build a DeviceType model of the device. This class allows reading device settings, mass erasing flash pages, writing applications to flash/ram, configuring the device's option bytes and reading program data from the flash.
+The StmInterface class is a higher level interaction which uses the SerialTool class to interact with the device and building a DeviceType model of the device. This class allows reading device settings, mass erasing flash pages, writing applications to flash/ram, configuring the device's option bytes and reading program data from the flash.
 
 
 ### Classes
@@ -46,10 +46,6 @@ This tool should be written with unittests - these unittests are run against the
 
 
 
-SerialFlasher Class
-This class represents the object used to interface with the microcontroller.
-
-
 ## Supported Devices
 
 All STM32F10Xxx devices should be supported
@@ -64,45 +60,31 @@ All STM32F10Xxx devices should be supported
 
 ### Round 1
 
-Trying to do everything in a single class again! Project structure needs some thinking about
-
-High Level Commands: 
-Write data to flash storage
-Get device information
-Get device status, etc
-
-Mid level commands:
-Send Bootloader commands
-Check Bootloader responses
-Configure driver
-Read registers
-Write registers
-
-Low level commands:
-read bytes
-write bytes
-wait for ack
-reset with DTR
+Todos
+- ~~Trying to do everything in a single class again! Project structure needs some thinking about~~
 
 ### Round 2
+
 Todos
-- Separate App and Module, obvs. Fun took over!
-- Update/Upgrade comments to DoxyGen & make docs
-- Relocate tests folder & create proper python module
-- Build into a package & test
-- Rename files/classes sensibly
+- ~~Separate App and Module, obvs. Fun took over!~~
+- ~~Update/Upgrade comments to Sphinx & make docs~~
+- ~~Relocate tests folder & create proper python module~~
+- ~~Build into a package & test~~
+- ~~Rename files/classes sensibly~~
 - Format & use pep8 checker
 - Watch for proper case use!
 - Write more extensive tests
 
+### Round 3
 
-## Notes
+Todos
+- Rename project (It's quite numbery)
+- Fix directory structure
+- Use UART printing image to test application upload
 
-Flash programming is gonna be fun! After reset, FPEC block is protected FLASH_CR not accessible in write mode two write cycles to unlock
--   1 : Key1 -> FLASH_KEYREG
--   2 : Key2 -> FLASH_KEYREG
 
-__this isn't required for using the bootloader__
+
+## Bootloader Memory Access
 
 
 | Memory Area | Write command | Read command | Erase command | Go command |
@@ -114,9 +96,13 @@ __this isn't required for using the bootloader__
 | OTP Memory | Supported | Supported | Not supported | Not supported |
 
 
-Device Model  - high level, abstracted user-friendly methods
-Bootloader Interface - mid level, sanity checking, device controller
-Serial interface - low level, serial port interface, timeouts etc
+## Notes
+
+__this isn't required for using the bootloader__
+
+Flash programming is gonna be fun! After reset, FPEC block is protected FLASH_CR not accessible in write mode two write cycles to unlock
+-   1 : Key1 -> FLASH_KEYREG
+-   2 : Key2 -> FLASH_KEYREG
 
 Flash memory programming sequence in standard mode:
 - check no flash mem operation (see BSY bit in FLASH_SR)
@@ -138,3 +124,10 @@ Erasing the option bytes:
 - set the STRT but in the FLASH_CR
 - wait for BSY & verify
 
+## Sources And Documentation
+
+Good documentation available on the STM Website. Special shoutout to the following documents:
+
+- AN2606 STM32 Microcontroller system memory boot mode
+- AN3155 USART protocol used in the STM32 bootloader
+- PM0075 STM32F10xxx Flash memory microcontrollers
