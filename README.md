@@ -13,31 +13,27 @@ The DeviceType class is a data structure used to hold information about the conn
 The StmInterface class is a higher level interaction which uses the SerialTool class to interact with the device and building a DeviceType model of the device. This class allows reading device settings, mass erasing flash pages, writing applications to flash/ram, configuring the device's option bytes and reading program data from the flash.
 
 
-### Usage
+## Usage
 
-## Setup
+### Setup
 
 The SerialTool class uses PySerial to interact with the bootloader on the target device. The bootloader uses a USART protocol to communicate with the bootloader, which differs from traditional USB signaling. To communicate over USART with a device we need a USB->UART adaptor. Some development boards may have this adaptor IC on the board already, in which case no external hardware is required. These adaptors are very cheap and available from a number of sources ([Example](https://www.adafruit.com/product/5335)). STM32F10xxx device's primary UART port uses Port A9 for Tx and Port A10 for Rx. These should connect to the Rx and Tx pins (i.e Rx to Tx, Tx to Rx) of the USB->UART adaptor. The adaptor should also supply power (or at the very least share a ground with) the target device. Finally, in order to reset the device, the SerialTool class utilises the DTR pin of the adaptor ( unfortunately not all adaptors make this pin available to the user) which should be connected to the device's reset pin.
 
-## SerialTool
+### SerialTool
 
 SerialTool init requires either a configured PySerial object or a string containing the serial port to connect to. If neither is supplied then the instantiation will raise an error. The baud rate of the connection is 9600bps by default, however this can be changed by the user. The supported baud rates are 1200 - 115200 bps. 
 
-----
-#### Note on Timeouts
+#### Timeouts
 Serial read/write timeouts are controlled by the underlying Serial object. They can be configured by accessing that object (i.e if supplying a serial object to the tool on instantiation) or by using the `setSerialReadWriteTimeout` method. The timeout default is 1 second, however at slower baud rates, this is insufficient. For example, reading 256 bytes (the maximum read/write length) at 1200 baud will take approximately 1.7 seconds. If using a very low baud rate, the user should remember to set the timeouts accordingly.
 
-----
 
 The SerialTool class provides methods for calling each of the available bootloader commands and returns the raw bytes to the user. This class does not verify user supplied information - for example addresses are not confirmed to be accessible. This provides a lot of flexibility regarding how the user interacts with the device, but obviously does not provide a safety net. It is unlikely that any of the bootloader commands would be capable of damaging or bricking the device but all operations are undertaken at the user's own risk :)
 
-----
-#### Note on device resets
+#### Device resets
 Several bootloader commands are used to adjust the flash option bytes register (e.g read/write protect/unprotect of flash pages). The commands will cause a device reset, as will all writes to the Flash Option Bytes memory region (writes to this region are only permitted if they are 16 bytes in length). The user will need to call the `reconnect` method after these commands. See documentation for more info.
 
-----
 
-## STMInterface
+### STMInterface
 
 This class provides a higher level control of the device, simplifying reading and writing large blocks of information, retrieving device information and doing sensible checks of addresses and input lengths. The STMInterface can also reconnect automatically after the device resets.
 
