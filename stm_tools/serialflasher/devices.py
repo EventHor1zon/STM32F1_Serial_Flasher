@@ -622,7 +622,7 @@ class Stm32f10xXlDensity(DeviceType):
         self.bootloader_ram = Region("bootloader ram", 0x20000000, 0x200007FF)
 
 
-def device_from_id(pid: int, bootloader_version: float=2.2) -> DeviceType | None:
+def device_from_id(pid: int, bootloader_version: float=2.2, option_bytes: OptionBytes | None = None) -> DeviceType | None:
     """
         Factory method to return the correct device class
         from the pid. The bootloader version is a bit surplus here. 
@@ -637,17 +637,16 @@ def device_from_id(pid: int, bootloader_version: float=2.2) -> DeviceType | None
     """
     # select device characteristics from pid
     if pid == 0x0412:
-        return Stm32f10xLow(pid, bootloader_version)
+        return Stm32f10xLow(pid, bootloader_version, option_bytes)
     elif pid == 0x0410:
-        return Stm32f10xMed(pid, bootloader_version)
+        return Stm32f10xMed(pid, bootloader_version, option_bytes)
     elif pid == 0x0414:
-        return Stm32f10xHigh(pid, bootloader_version)
+        return Stm32f10xHigh(pid, bootloader_version, option_bytes)
     elif pid == 0x0420:
-        return Stm32f10xMedVal(pid, bootloader_version)
+        return Stm32f10xMedVal(pid, bootloader_version, option_bytes)
     elif pid == 0x0428:
-        return Stm32f10xHighVal(pid, bootloader_version)
+        return Stm32f10xHighVal(pid, bootloader_version, option_bytes)
     elif pid == 0x0430:
-        return Stm32f10xXlDensity(pid, bootloader_version)
+        return Stm32f10xXlDensity(pid, bootloader_version, option_bytes)
     else:
-        print(f"Either an invalid or unsupported product {pid}")
-        return None
+        raise DeviceNotSupportedError(f"Device with PID {hex(pid)} is not supported")

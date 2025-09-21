@@ -2,7 +2,7 @@ from time import sleep
 from .utilities import unpack16BitInt
 from .constants import *
 from .errors import *
-from .devices import DeviceType
+from .devices import DeviceType, device_from_id
 from .serialtool import SerialTool
 
 
@@ -63,10 +63,11 @@ class STMInterface:
         self.connected = self.serialTool.connect()
         return self.connected
 
-    def connectAndReadInfo(
+    def connectAndGetDevice(
         self, port: str = "", baud: int = 9600, readOptBytes: bool = False
     ) -> bool:
-        """Connect to the device and retrieve the device information
+        """Connect to the device and retrieve the device information, 
+            returning the device type object on success
 
         Args:
             port (str, optional): Port to connect to. Defaults to "".
@@ -74,28 +75,57 @@ class STMInterface:
             readOptBytes (bool, optional): Read the option-bytes from the device. Defaults to False.
 
         Returns:
-            bool: Success
+            DeviceType object or raises invalid device
         """
+        if self.device is not None:
+            self.device = None
+
         success = self.connectToDevice(port, baud)
 
         if success:
             # clear the device info if it exists
-            if self.device is not None:
-                self.device = None
-            self.readDeviceInfo()
+            try:
+                pid, info, bootloader = self.readDeviceInfo()
+                # TODO: Log here
+                # print(f"Device found: PID={pid}, info: {info}, BL version: {bootloader}")
+            except DeviceNotConnectedError:
+                success = False
+                # TODO: Log here
+                # print("Device does not appear to be connected")
+            except CommandFailedError as e:
+                success = False
+                # TODO: Log here
+                # print(f"Command failed: {e}")
 
+        opts = None
         if success and readOptBytes:
-            success = self.readOptionBytes()
+            try:
+                opts = self.readOptionBytes()
+            except Exception as e:
+                print(f"Error getting option bytes {e}")
+                success = False
 
-        return success
+        if success:
+            self.device = device_from_id(pid, bootloader, opts)
 
-    def readDeviceInfo(self) -> bool:
+        if success and self.device is None:
+            print("Error: invalid device type!")
+
+        return self.device
+
+    def getDevice(self) -> DeviceType:
+        if not self.device:
+            raise DeviceNotConnectedError
+        return self.device
+
+    def readDeviceInfo(self) -> tuple:
         """collects the object's id and bootloader version
         and creates a device model from it
-        NOTE: probably shouldn't have so many exceptions here?
-        Use exceptions for now as this is a fundamental function which
-        requires multiple other commands to work in order to build
-        Device model
+
+            TODO: This function should not be in charge of creating the 
+                  device type. That should be a dedicated function. This should 
+                  return the data in a form that can be used to create 
+                  a devicetype object
         """
         if not self.connected:
             raise DeviceNotConnectedError("Device connection not started")
@@ -113,9 +143,8 @@ class STMInterface:
             raise CommandFailedError("GetInfo Command failed")
 
         bl_version = self.unpackBootloaderVersion(info)
-        self.device = DeviceType(pid, bl_version)
 
-        return True
+        return pid, info, bl_version
 
     def getDeviceBootloaderVersion(self) -> float:
         """Getter for bootloader version
@@ -165,14 +194,14 @@ class STMInterface:
             16,
         )
 
-        if success:
-            if self.device is not None:
-                try:
-                    self.device.updateOptionBytes(rx)
-                except:
-                    success = False
+        if not success:
+            raise InformationNotRetrieved("Unable to read option bytes memory!")
 
-        return success
+        if self.device is not None:
+            # let any exceptions here bubble up
+            self.device.updateOptionBytes(rx)
+
+        return rx
 
     def writeToOptionBytes(self, data: bytearray, reconnect: bool = False) -> bool:
         """writes data to the device flash option-bytes address. This must be a 16-byte write
@@ -440,9 +469,9 @@ class STMInterface:
             raise DeviceNotConnectedError
         if not self.device:
             raise InformationNotRetrieved
-        if self.device.opt_bytes == None:
+        if not self.device.opt_bytes:
             raise InformationNotRetrieved
-        write_prot = False
+
         if (
             self.device.opt_bytes.write_protect_0 == 0
             and self.device.opt_bytes.write_protect_1 == 0
@@ -460,7 +489,7 @@ class STMInterface:
             raise InformationNotRetrieved
         if self.device.opt_bytes == None:
             raise InformationNotRetrieved
-        write_prot = False
+
         if (
             self.device.opt_bytes.write_protect_0 == 0
             and self.device.opt_bytes.write_protect_1 == 0
