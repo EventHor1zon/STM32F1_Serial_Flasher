@@ -503,50 +503,9 @@ class DeviceType:
         # same across most devices, intialise first, overwrite if neccesary
         self.pid = pid
         self.bootloaderVersion = bootloaderVersion
-        self.bootloader_ram = Region("bootloader ram", 0x20000000, 0x200001FF)
         self.system_memory = Region("system memory", 0x1FFFF000, 0x1FFFF7FF)
 
-        # select device characteristics from pid
-        if self.pid == 0x0412:
-            self.name = "stm32f10xxxLowDensity"
-            self.ram = Region("ram", 0x20000200, 0x200027FF)
-            self.flash_page_size = 1024
-            self.flash_page_num = 32
-            self.flash_info_blk_size = 258
-        elif self.pid == 0x0410:
-            self.name = "stm32f10xxxMedDensity"
-            self.ram = Region("ram", 0x20000200, 0x20004FFF)
-            self.flash_page_size = 1024
-            self.flash_page_num = 128
-            self.flash_info_blk_size = 258
-        elif self.pid == 0x0414:
-            self.name = "stm32f10xxxHighDensity"
-            self.ram = Region("ram", 0x20000200, 0x2000FFFF)
-            self.flash_page_size = 2048
-            self.flash_page_num = 256
-            self.flash_info_blk_size = 258
-        elif self.pid == 0x0420:
-            self.name = "stm32f10xxxMedDensityValueLine"
-            self.ram = Region("ram", 0x20000200, 0x20001FFF)
-            self.flash_page_size = 1024
-            self.flash_page_num = 128
-            self.flash_info_blk_size = 258
-        elif self.pid == 0x0428:
-            self.name = "stm32f10xxxHighDensityValueLine"
-            self.ram = Region("ram", 0x20000200, 0x20007FFF)
-            self.flash_page_size = 2048
-            self.flash_page_num = 256
-            self.flash_info_blk_size = 258
-        elif self.pid == 0x0430:
-            self.name = "stm32f10xxxXlDensity"
-            self.ram = Region("ram", 0x20000800, 0x20017FFF)
-            self.system_memory = Region("system memory", 0x1FFFF000, 0x1FFF77FF)
-            self.flash_page_size = 2048
-            self.flash_page_num = 256
-            self.flash_info_blk_size = 258
-            self.bootloader_ram = Region("bootloader ram", 0x20000000, 0x200007FF)
-        else:
-            raise DeviceNotSupportedError("Either an invalid or unsupported product")
+
 
         # flash memory region common
         self.flash_memory = Region(
@@ -595,3 +554,99 @@ class DeviceType:
                 f"Invalid flash page requested (max {self.flash_pages_num-1})"
             )
         return self.flash_pages[page].start
+
+
+
+class Stm32f10xLow(DeviceType):
+
+    def __init__(self, pid: int, bootloaderVersion: float):
+        self.name = "stm32f10xxxLowDensity"
+        self.ram = Region("ram", 0x20000200, 0x200027FF)
+        self.flash_page_size = 1024
+        self.flash_page_num = 32
+        self.flash_info_blk_size = 258
+        super().__init__(self, pid, bootloaderVersion)
+
+
+class Stm32f10xMed(DeviceType):
+
+    def __init__(self, pid, bootloaderVersion):
+        self.name = "stm32f10xxxMedDensity"
+        self.ram = Region("ram", 0x20000200, 0x20004FFF)
+        self.flash_page_size = 1024
+        self.flash_page_num = 128
+        self.flash_info_blk_size = 258
+        super().__init__(pid, bootloaderVersion)
+
+class Stm32f10xHigh(DeviceType):
+            
+    def __init__(self, pid, bootloaderVersion):
+        self.name = "stm32f10xxxHighDensity"
+        self.ram = Region("ram", 0x20000200, 0x2000FFFF)
+        self.flash_page_size = 2048
+        self.flash_page_num = 256
+        self.flash_info_blk_size = 258
+        super().__init__(pid, bootloaderVersion)
+
+class Stm32f10xMedVal(DeviceType):
+
+    def __init__(self, pid, bootloaderVersion):
+        self.name = "stm32f10xxxMedDensityValueLine"
+        self.ram = Region("ram", 0x20000200, 0x20001FFF)
+        self.flash_page_size = 1024
+        self.flash_page_num = 128
+        self.flash_info_blk_size = 258
+        super().__init__(pid, bootloaderVersion)
+
+class Stm32f10xHighVal(DeviceType):
+
+    def __init__(self, pid, bootloaderVersion):
+        self.name = "stm32f10xxxHighDensityValueLine"
+        self.ram = Region("ram", 0x20000200, 0x20007FFF)
+        self.flash_page_size = 2048
+        self.flash_page_num = 256
+        self.flash_info_blk_size = 258
+        super().__init__(pid, bootloaderVersion)
+
+class Stm32f10xXlDensity(DeviceType):
+    
+    def __init__(self, pid, bootloaderVersion):
+        super().__init__(pid, bootloaderVersion)
+        self.name = "stm32f10xxxXlDensity"
+        self.ram = Region("ram", 0x20000800, 0x20017FFF)
+        self.system_memory = Region("system memory", 0x1FFFF000, 0x1FFF77FF)
+        self.flash_page_size = 2048
+        self.flash_page_num = 256
+        self.flash_info_blk_size = 258
+        self.bootloader_ram = Region("bootloader ram", 0x20000000, 0x200007FF)
+
+
+
+def device_from_id(pid: int, bootloader_version: float=2.2) -> DeviceType | None:
+    """
+        Factory method to return the correct device class
+        from the pid. The bootloader version is a bit surplus here            
+
+        Args: 
+            pid - the device identification number
+            bootloader_version - the version of device bootloader
+        
+        Return: 
+            DeviceType object or None for invalid/unknown PID
+    """
+    # select device characteristics from pid
+    if pid == 0x0412:
+        return Stm32f10xLow(pid, bootloader_version)
+    elif pid == 0x0410:
+        return Stm32f10xMed(pid, bootloader_version)
+    elif pid == 0x0414:
+        return Stm32f10xHigh(pid, bootloader_version)
+    elif pid == 0x0420:
+        return Stm32f10xMedVal(pid, bootloader_version)
+    elif pid == 0x0428:
+        return Stm32f10xHighVal(pid, bootloader_version)
+    elif pid == 0x0430:
+        return Stm32f10xXlDensity(pid, bootloader_version)
+    else:
+        print(f"Either an invalid or unsupported product {pid}")
+        return None
