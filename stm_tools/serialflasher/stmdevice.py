@@ -2,7 +2,7 @@ from time import sleep
 from .utilities import unpack16BitInt
 from .constants import *
 from .errors import *
-from .devices import DeviceType, device_from_id
+from .devices import DeviceType, device_from_id, OptionBytes
 from .serialtool import SerialTool
 
 
@@ -84,26 +84,12 @@ class STMInterface:
 
         if success:
             # clear the device info if it exists
-            try:
-                pid, info, bootloader = self.readDeviceInfo()
-                # TODO: Log here
-                # print(f"Device found: PID={pid}, info: {info}, BL version: {bootloader}")
-            except DeviceNotConnectedError:
-                success = False
-                # TODO: Log here
-                # print("Device does not appear to be connected")
-            except CommandFailedError as e:
-                success = False
-                # TODO: Log here
-                # print(f"Command failed: {e}")
+            pid, info, bootloader = self.readDeviceInfo()
 
         opts = None
         if success and readOptBytes:
-            try:
-                opts = self.readOptionBytes()
-            except Exception as e:
-                print(f"Error getting option bytes {e}")
-                success = False
+            opts_raw = self.readOptionBytes()
+            opts = OptionBytes.FromBytes(opts_raw)
 
         if success:
             self.device = device_from_id(pid, bootloader, opts)
@@ -176,7 +162,7 @@ class STMInterface:
             )
         return self.device.pid
 
-    def readOptionBytes(self) -> bool:
+    def readOptionBytes(self) -> bytearray:
         """reads the flash option-bytes from the device and creates an
         OptionBytes object from the result
 
@@ -201,7 +187,7 @@ class STMInterface:
             # let any exceptions here bubble up
             self.device.updateOptionBytes(rx)
 
-        return rx
+        return bytearray(rx)
 
     def writeToOptionBytes(self, data: bytearray, reconnect: bool = False) -> bool:
         """writes data to the device flash option-bytes address. This must be a 16-byte write
