@@ -26,6 +26,21 @@ class OptioByteTestCase(unittest.TestCase):
         fob = OptionBytes.FromBytes(OPTBYTE_TEST_VALID_OPTION_BYTES)
         self.assertEqual(fob.data_byte_1, 0xA5)
 
+    def testOptionBytesFromInvalidLenData(self):
+        with self.assertRaises(UnpackInfoFailedError):
+            invalid_length_data = OPTBYTE_TEST_VALID_OPTION_BYTES+b'\xCA\xFE\xBA\xBE'
+            fob = OptionBytes.FromBytes(invalid_length_data)
+
+    def testOptionBytesStrictCheckingInvalid(self):
+        with self.assertRaises(InvalidChecksumError):
+            invalid_checksum_data = OPTBYTE_TEST_VALID_OPTION_BYTES
+            invalid_checksum_data[4] = 0x01
+            fob = OptionBytes.FromBytes(invalid_checksum_data, strict_checking=True)
+    
+    def testOptionBytesStringCheckingValid(self):
+        fob = OptionBytes.FromBytes(OPTBYTE_TEST_VALID_OPTION_BYTES, strict_checking=True)
+        self.assertIsInstance(fob, OptionBytes)
+
     def testOptionBytesFromAttributesKnownData(self):
         fob = OptionBytes.FromAttributes(data_byte_1=0x1F)
         self.assertEqual(fob.data_byte_1, 0x1F)
@@ -56,3 +71,10 @@ class OptioByteTestCase(unittest.TestCase):
         fob = OptionBytes.FromAttributes(watchdog_type=0)
         fob.watchdogType = 1
         self.assertEqual(fob.watchdogType, 1)
+
+    def testOptionBytesRawGetterMethodUpdates(self):
+        fob = OptionBytes.FromAttributes(watchdog_type=0)
+        raw_a = OptionBytes.rawBytes()
+        OptionBytes.dataByte0 = 0x12
+        raw_b = OptionBytes.rawBytes()
+        self.assertNotEqual(raw_a, raw_b)
