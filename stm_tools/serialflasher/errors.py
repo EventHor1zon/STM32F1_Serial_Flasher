@@ -74,3 +74,9 @@ class DeviceNotSupportedError(Exception):
     """The device is not currently supported"""
 
     pass
+
+
+class InvalidChecksumError(Exception):
+    """ the checksum or parity byte check failed"""
+
+    pass

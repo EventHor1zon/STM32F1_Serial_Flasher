@@ -10,7 +10,7 @@ from struct import unpack, pack
 from enum import Enum
 from dataclasses import dataclass
 from collections import namedtuple
-from .errors import DeviceNotSupportedError, InvalidAddressError
+from .errors import DeviceNotSupportedError, InvalidAddressError, UnpackInfoFailedError, InvalidChecksumError
 from .utilities import getByteComplement, setBit, clearBit
 
 FlashOptionBytes = namedtuple(
@@ -93,6 +93,9 @@ class OptionBytes:
     write_protect_2: int = 0x00
     write_protect_3: int = 0x00
 
+    # info parameters
+    data_length: int = 16
+
     def __init__(self):
         """Default Constructor - do not use"""
         pass
@@ -145,7 +148,7 @@ class OptionBytes:
         return self
 
     @classmethod
-    def FromBytes(cls, data: bytearray) -> OptionBytes:
+    def FromBytes(cls, data: bytearray, strict_checking: bool=False) -> OptionBytes:
         """Constructor - creates an option-bytes object from
         an array of bytes. Simplifies decoding the option-byte
         settings read from a device
@@ -156,8 +159,22 @@ class OptionBytes:
         Returns:
             OptionBytes: the option-bytes object
         """
+        if len(data) != self.data_length:
+            raise UnpackInfoFailedError(f"Invalid data length for option byte object {len(data)} != {self.data_length}")
         self = OptionBytes()
         fob = FlashOptionBytes._make(unpack(">16B", data))
+
+        if strict_checking == True:
+            if fob.nUser != getByteComplement(fob.user) or \
+               fob.nData0 != getByteComplement(fob.data0) or \
+               fob.nData1 != getByteComplement(fob.data1) or \
+               fob.nReadProt != getByteComplement(fob.readProt) or \
+               fob.nWriteProt0 != getByteComplement(fob.writeProt0) or \
+               fob.nWriteProt1 != getByteComplement(fob.writeProt1) or \
+               fob.nWriteProt2 != getByteComplement(fob.writeProt2) or \
+               fob.nWriteProt3 != getByteComplement(fob.writeProt3):
+                raise InvalidChecksumError("Parity byte checks not passed!")
+
         self.read_protect = fob.readProt
         self.watchdog_type = fob.user & 0b1
         self.reset_on_stop = 0 if ((fob.user >> 1) & 0b1) else 1
