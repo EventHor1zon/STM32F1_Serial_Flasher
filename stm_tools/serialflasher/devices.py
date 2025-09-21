@@ -488,13 +488,13 @@ class DeviceType:
     # 32kB * 64 conn
     flash_mem_size: int
 
-    def __init__(self, pid: int, bootloaderVersion: float) -> DeviceType:
+    def __init__(self, pid: int, bootloaderVersion: float=2.2, option_bytes: OptionBytes | None=None) -> DeviceType:
         """constructor for the DeviceType
 
         Args:
             pid (int): ID read from the device
             bootloaderVersion (float): bootloader version read from device
-            TODO: Probably don't need BL version for constructor...?
+            option_bytes: optional OptionBytes object to set current values 
 
         Raises:
             DeviceNotSupportedError: Device ID is not currently supported. See README for
@@ -504,8 +504,6 @@ class DeviceType:
         self.pid = pid
         self.bootloaderVersion = bootloaderVersion
         self.system_memory = Region("system memory", 0x1FFFF000, 0x1FFFF7FF)
-
-
 
         # flash memory region common
         self.flash_memory = Region(
@@ -529,8 +527,11 @@ class DeviceType:
         # so use region rather than Register
         self.flash_option_bytes = Region("OptionBytes", 0x1FFFF800, 0x1FFF800 + 16)
 
-        # fill this in on demand
-        self.opt_bytes = OptionBytes.FromAttributes()
+        if option_bytes is not None:
+            self.opt_bytes = option_bytes
+        else:
+            # the user can update this later
+            self.opt_bytes = OptionBytes.FromAttributes()
 
     def updateOptionBytes(self, data: bytearray) -> None:
         """create the OptionBytes object
@@ -559,59 +560,59 @@ class DeviceType:
 
 class Stm32f10xLow(DeviceType):
 
-    def __init__(self, pid: int, bootloaderVersion: float):
+    def __init__(self, *args, **kwargs):
         self.name = "stm32f10xxxLowDensity"
         self.ram = Region("ram", 0x20000200, 0x200027FF)
         self.flash_page_size = 1024
         self.flash_page_num = 32
         self.flash_info_blk_size = 258
-        super().__init__(self, pid, bootloaderVersion)
+        super().__init__(self, *args, **kwargs)
 
 
 class Stm32f10xMed(DeviceType):
 
-    def __init__(self, pid, bootloaderVersion):
+    def __init__(self, *args, **kwargs):
         self.name = "stm32f10xxxMedDensity"
         self.ram = Region("ram", 0x20000200, 0x20004FFF)
         self.flash_page_size = 1024
         self.flash_page_num = 128
         self.flash_info_blk_size = 258
-        super().__init__(pid, bootloaderVersion)
+        super().__init__(*args, **kwargs)
 
 class Stm32f10xHigh(DeviceType):
             
-    def __init__(self, pid, bootloaderVersion):
+    def __init__(self, *args, **kwargs):
         self.name = "stm32f10xxxHighDensity"
         self.ram = Region("ram", 0x20000200, 0x2000FFFF)
         self.flash_page_size = 2048
         self.flash_page_num = 256
         self.flash_info_blk_size = 258
-        super().__init__(pid, bootloaderVersion)
+        super().__init__(self, *args, **kwargs)
 
 class Stm32f10xMedVal(DeviceType):
 
-    def __init__(self, pid, bootloaderVersion):
+    def __init__(self, *args, **kwargs):
         self.name = "stm32f10xxxMedDensityValueLine"
         self.ram = Region("ram", 0x20000200, 0x20001FFF)
         self.flash_page_size = 1024
         self.flash_page_num = 128
         self.flash_info_blk_size = 258
-        super().__init__(pid, bootloaderVersion)
+        super().__init__(self, *args, **kwargs)
 
 class Stm32f10xHighVal(DeviceType):
 
-    def __init__(self, pid, bootloaderVersion):
+    def __init__(self, *args, **kwargs):
         self.name = "stm32f10xxxHighDensityValueLine"
         self.ram = Region("ram", 0x20000200, 0x20007FFF)
         self.flash_page_size = 2048
         self.flash_page_num = 256
         self.flash_info_blk_size = 258
-        super().__init__(pid, bootloaderVersion)
+        super().__init__(self, *args, **kwargs)
 
 class Stm32f10xXlDensity(DeviceType):
     
-    def __init__(self, pid, bootloaderVersion):
-        super().__init__(pid, bootloaderVersion)
+    def __init__(self, *args, **kwargs):
+        super().__init__(self, *args, **kwargs)
         self.name = "stm32f10xxxXlDensity"
         self.ram = Region("ram", 0x20000800, 0x20017FFF)
         self.system_memory = Region("system memory", 0x1FFFF000, 0x1FFF77FF)
@@ -621,11 +622,11 @@ class Stm32f10xXlDensity(DeviceType):
         self.bootloader_ram = Region("bootloader ram", 0x20000000, 0x200007FF)
 
 
-
 def device_from_id(pid: int, bootloader_version: float=2.2) -> DeviceType | None:
     """
         Factory method to return the correct device class
-        from the pid. The bootloader version is a bit surplus here            
+        from the pid. The bootloader version is a bit surplus here. 
+        Designed to work with             
 
         Args: 
             pid - the device identification number
