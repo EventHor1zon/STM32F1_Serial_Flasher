@@ -175,8 +175,10 @@ class STMInterface:
         if not self.connected:
             raise DeviceNotConnectedError
 
+        # since we may not have a device object yet, use the 
+        # known OPTBYTES addr
         success, rx = self.serialTool.cmdReadFromMemoryAddress(
-            self.device.flash_option_bytes.start,
+            STM_F10X_OPTBYTES_ADDR,
             16,
         )
 
