@@ -159,7 +159,7 @@ class OptionBytes:
         Returns:
             OptionBytes: the option-bytes object
         """
-        if len(data) != self.data_length:
+        if len(data) != cls.data_length:
             raise UnpackInfoFailedError(f"Invalid data length for option byte object {len(data)} != {self.data_length}")
         self = OptionBytes()
         fob = FlashOptionBytes._make(unpack(">16B", data))
@@ -528,6 +528,8 @@ class DeviceType:
             0x08000000,
             (0x08000000 + (self.flash_page_num * self.flash_page_size)),
         )
+        
+        self.flash_mem_size = self.flash_memory.size
 
         self.flash_pages = []
         for i in range(self.flash_page_num):
