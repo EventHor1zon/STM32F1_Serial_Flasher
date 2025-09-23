@@ -2,7 +2,7 @@ from time import sleep
 from .utilities import unpack16BitInt
 from .constants import *
 from .errors import *
-from .devices import DeviceType, device_from_id, OptionBytes
+from .devices import DeviceType, get_device_from_id, OptionBytes
 from .serialtool import SerialTool
 
 
@@ -92,7 +92,7 @@ class STMInterface:
             opts = OptionBytes.FromBytes(opts_raw)
 
         if success:
-            self.device = device_from_id(pid, bootloader, opts)
+            self.device = get_device_from_id(pid, bootloader, opts)
 
         if success and self.device is None:
             print("Error: invalid device type!")

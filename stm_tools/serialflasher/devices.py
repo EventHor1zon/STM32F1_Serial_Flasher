@@ -641,7 +641,7 @@ class Stm32f10xXlDensity(DeviceType):
         self.bootloader_ram = Region("bootloader ram", 0x20000000, 0x200007FF)
 
 
-def device_from_id(pid: int, bootloader_version: float=2.2, option_bytes: OptionBytes | None = None) -> DeviceType | None:
+def get_device_from_id(pid: int, bootloader_version: float=2.2, option_bytes: OptionBytes | None = None) -> DeviceType | None:
     """
         Factory method to return the correct device class
         from the pid. The bootloader version is a bit surplus here. 
