@@ -5,6 +5,7 @@ from stm_tools.serialflasher.devices import (
     OptionBytes,
     Region,
     FlashOptionBytes,
+    get_device_from_id,
 )
 from stm_tools.serialflasher.errors import *
 from collections import namedtuple
@@ -18,27 +19,37 @@ DEVICETYPE_TEST_EXAMPLE_OPTBYTES = (
     b"\xa5Z\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff"
 )
 
+DEVICETYPE_TEST_EXAMPLE_INVALID_OPTBYTES = b"\xa5Z\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\x0a\x0b"
+
 
 class DeviceTypeTestCase(unittest.TestCase):
     def testInitDeviceValidId(self):
-        dev = DeviceType(DEV_TEST_VALID_DEVICE_ID, DEV_TEST_VALID_BOOTLOADER_ID)
+        dev = get_device_from_id(DEV_TEST_VALID_DEVICE_ID, DEV_TEST_VALID_BOOTLOADER_ID)
         self.assertIsInstance(dev, DeviceType)
         self.assertEqual(dev.flash_page_size, DEV_TEST_VALID_DEVICE_PAGE_SIZE)
 
     def testInitDeviceInvalidId(self):
         with self.assertRaises(DeviceNotSupportedError):
-            dev = DeviceType(DEV_TEST_INVALID_DEVICE_ID, DEV_TEST_VALID_BOOTLOADER_ID)
+            dev = get_device_from_id(DEV_TEST_INVALID_DEVICE_ID, DEV_TEST_VALID_BOOTLOADER_ID)
+
+    def testGetDeviceFromIdMed(self):
+        dev = get_device_from_id(DEV_TEST_VALID_DEVICE_ID, DEV_TEST_VALID_BOOTLOADER_ID)
+        self.assertEqual(dev.name, "stm32f10xxxMedDensity")
+
+    def testGetDeviceFromIdXl(self):
+        dev = get_device_from_id(DEV_TEST_XL_DEVICE_ID, DEV_TEST_VALID_BOOTLOADER_ID)
+        self.assertTrue("Xl" in dev.name)
 
     def testDeviceBootloaderType(self):
-        med_dev = DeviceType(DEV_TEST_VALID_DEVICE_ID, DEV_TEST_VALID_BOOTLOADER_ID)
+        med_dev = get_device_from_id(DEV_TEST_VALID_DEVICE_ID, DEV_TEST_VALID_BOOTLOADER_ID)
 
         bootloader_med = med_dev.bootloader_ram
         self.assertIsInstance(bootloader_med, Region)
         self.assertIsInstance(bootloader_med.size, int)
 
     def testDeviceBootloaderRegionSize(self):
-        xl_dev = DeviceType(DEV_TEST_XL_DEVICE_ID, DEV_TEST_VALID_BOOTLOADER_ID)
-        med_dev = DeviceType(DEV_TEST_VALID_DEVICE_ID, DEV_TEST_VALID_BOOTLOADER_ID)
+        xl_dev = get_device_from_id(DEV_TEST_XL_DEVICE_ID, DEV_TEST_VALID_BOOTLOADER_ID)
+        med_dev = get_device_from_id(DEV_TEST_VALID_DEVICE_ID, DEV_TEST_VALID_BOOTLOADER_ID)
 
         bootloader_xl = xl_dev.bootloader_ram
         bootloader_med = med_dev.bootloader_ram
@@ -48,13 +59,23 @@ class DeviceTypeTestCase(unittest.TestCase):
         self.assertEqual(bootloader_xl.size, 0x7FF)
 
     def testDeviceFlashMemorySize(self):
-        xl_dev = DeviceType(DEV_TEST_XL_DEVICE_ID, DEV_TEST_VALID_BOOTLOADER_ID)
+        xl_dev = get_device_from_id(DEV_TEST_XL_DEVICE_ID, DEV_TEST_VALID_BOOTLOADER_ID)
         self.assertEqual(
             xl_dev.flash_memory.size, xl_dev.flash_page_num * xl_dev.flash_page_size
         )
 
     def testOptionBytesUpdate(self):
-        dev = DeviceType(DEV_TEST_VALID_DEVICE_ID, DEV_TEST_VALID_BOOTLOADER_ID)
+        dev = get_device_from_id(DEV_TEST_VALID_DEVICE_ID, DEV_TEST_VALID_BOOTLOADER_ID)
         dev.updateOptionBytes(DEVICETYPE_TEST_EXAMPLE_OPTBYTES)
         self.assertEqual(dev.opt_bytes.nUser, 0xA5)
         self.assertEqual(dev.opt_bytes.writeProt0, 0xFF)
+
+    def testCreateWithOptionBytes(self):
+        dev = get_device_from_id(DEV_TEST_VALID_DEVICE_ID, DEV_TEST_VALID_BOOTLOADER_ID, OptionBytes.FromBytes(DEVICETYPE_TEST_EXAMPLE_OPTBYTES))
+        self.assertIsInstance(dev.opt_bytes, OptionBytes)
+        self.assertEqual(dev.opt_bytes.nUser, 0xA5)
+    
+    def testCreateWithInvalidOptionBytes(self):
+        with self.assertRaises(UnpackInfoFailedError):
+            dev = get_device_from_id(DEV_TEST_VALID_DEVICE_ID, DEV_TEST_VALID_BOOTLOADER_ID, OptionBytes.FromBytes(DEVICETYPE_TEST_EXAMPLE_INVALID_OPTBYTES))
+        
