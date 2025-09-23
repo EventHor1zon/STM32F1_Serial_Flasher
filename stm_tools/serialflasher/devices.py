@@ -160,7 +160,7 @@ class OptionBytes:
             OptionBytes: the option-bytes object
         """
         if len(data) != cls.data_length:
-            raise UnpackInfoFailedError(f"Invalid data length for option byte object {len(data)} != {self.data_length}")
+            raise UnpackInfoFailedError(f"Invalid data length for option byte object {len(data)} != {cls.data_length}")
         self = OptionBytes()
         fob = FlashOptionBytes._make(unpack(">16B", data))
 
