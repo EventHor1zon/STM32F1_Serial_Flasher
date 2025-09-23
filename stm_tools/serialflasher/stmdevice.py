@@ -65,7 +65,7 @@ class STMInterface:
 
     def connectAndGetDevice(
         self, port: str = "", baud: int = 9600, readOptBytes: bool = False
-    ) -> bool:
+    ) -> DeviceType:
         """Connect to the device and retrieve the device information, 
             returning the device type object on success
 
@@ -255,7 +255,7 @@ class STMInterface:
         success = True
 
         # max read length is 256 so do larger reads in multiples
-        full_reads = int(length / 256)
+        full_reads = int(length / 256) if length > 255 else 0
         rem = length % 256
 
         for i in range(full_reads):
