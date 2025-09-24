@@ -19,8 +19,8 @@ DEVICETYPE_TEST_EXAMPLE_OPTBYTES = (
     b"\xa5Z\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff"
 )
 
-DEVICETYPE_TEST_EXAMPLE_INVALID_OPTBYTES = b"\xa5Z\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\x0a\x0b"
-
+DEVICETYPE_TEST_EXAMPLE_INVALID_LEN_OPTBYTES = b"\xa5Z\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\x0a\x0b"
+DEVICETYPE_TEST_EXAMPLE_INVALID_VAL_OPTBYTES = b"\xa5Z\xff\x23Z\xa5\xff\xa5\xff\x00\xff\x11\xff\x00\xff\x00"
 
 class DeviceTypeTestCase(unittest.TestCase):
     def testInitDeviceValidId(self):
@@ -77,5 +77,8 @@ class DeviceTypeTestCase(unittest.TestCase):
     
     def testCreateWithInvalidOptionBytes(self):
         with self.assertRaises(UnpackInfoFailedError):
-            dev = get_device_from_id(DEV_TEST_VALID_DEVICE_ID, DEV_TEST_VALID_BOOTLOADER_ID, OptionBytes.FromBytes(DEVICETYPE_TEST_EXAMPLE_INVALID_OPTBYTES))
-        
+            dev = get_device_from_id(DEV_TEST_VALID_DEVICE_ID, DEV_TEST_VALID_BOOTLOADER_ID, OptionBytes.FromBytes(DEVICETYPE_TEST_EXAMPLE_INVALID_LEN_OPTBYTES))
+    
+    def testCreateWithInvalidOptionBytesStrictChecking(self):
+        with self.assertRaises(InvalidChecksumError):
+            dev = get_device_from_id(DEV_TEST_VALID_DEVICE_ID, DEV_TEST_VALID_BOOTLOADER_ID, OptionBytes.FromBytes(DEVICETYPE_TEST_EXAMPLE_INVALID_VAL_OPTBYTES, strict_checking=True))
