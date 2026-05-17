@@ -22,7 +22,6 @@ class STMInterface:
         Args:
             serialTool (SerialTool, optional): user-configured SerialTool object. Defaults to None.
         """
-        self.connected = False
         self.serialTool = serialTool
         self.connected = False if serialTool is None else serialTool.getConnectedState()
         self.device = None
@@ -64,7 +63,7 @@ class STMInterface:
         return self.connected
 
     def connectAndGetDevice(
-        self, port: str = "", baud: int = 9600, readOptBytes: bool = False
+        self, port: str = "", baud: int = 9600, read_opt_bytes: bool = False
     ) -> DeviceType:
         """Connect to the device and retrieve the device information, 
             returning the device type object on success
@@ -72,7 +71,7 @@ class STMInterface:
         Args:
             port (str, optional): Port to connect to. Defaults to "".
             baud (int, optional): Baud rate to connect at. Defaults to 9600.
-            readOptBytes (bool, optional): Read the option-bytes from the device. Defaults to False.
+            read_opt_bytes (bool, optional): Read the option-bytes from the device. Defaults to False.
 
         Returns:
             DeviceType object or raises invalid device
@@ -87,7 +86,7 @@ class STMInterface:
             pid, info, bootloader = self.readDeviceInfo()
 
         opts = None
-        if success and readOptBytes:
+        if success and read_opt_bytes:
             opts_raw = self.readOptionBytes()
             opts = OptionBytes.FromBytes(opts_raw)
 
@@ -99,9 +98,29 @@ class STMInterface:
 
         return self.device
 
-    def getDevice(self) -> DeviceType:
+    def getDevice(self, init_device: bool=True, read_opt_bytes: bool=True) -> DeviceType | None:
         if not self.device:
-            raise DeviceNotConnectedError
+            if init_device:
+                # we can be connected to a device without having created 
+                # a device model, so check this first
+                try:
+                    if self.connected() == True:
+                            pid, info, bootloader = self.readDeviceInfo()
+
+                            opts = None
+                            if read_opt_bytes:
+                                opts_raw = self.readOptionBytes()
+                                opts = OptionBytes.FromBytes(opts_raw)
+
+                            self.device = device_from_id(pid, bootloader, opts)                       
+                    elif self.serialTool is not None:
+                        self.connectAndGetDevice()
+                except CommandFailedError as e:
+                    print(f"Command Error: {e}")
+                except DeviceNotSupportedError as e:
+                    print(f"Unsupported Device Error: {e}")
+                    self.device = None
+
         return self.device
 
     def readDeviceInfo(self) -> tuple:
