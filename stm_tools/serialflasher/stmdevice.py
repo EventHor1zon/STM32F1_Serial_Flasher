@@ -124,13 +124,7 @@ class STMInterface:
         return self.device
 
     def readDeviceInfo(self) -> tuple:
-        """collects the object's id and bootloader version
-        and creates a device model from it
-
-            TODO: This function should not be in charge of creating the 
-                  device type. That should be a dedicated function. This should 
-                  return the data in a form that can be used to create 
-                  a devicetype object
+        """collects the object's id, info and bootloader version
         """
         if not self.connected:
             raise DeviceNotConnectedError("Device connection not started")
