@@ -53,8 +53,6 @@ The OptionBytes model provides a way to generate a data model from the raw flash
 
 This tool is written with unittests - for the SerialTool and STMInterface tests, these unittests are run against the actual device. Because it's fun. And reduces the chances of making an error in the mock, or interpreting the Datasheet. Or Errata in the datasheet. Or writing tests for an invalid bootloader version. More tests on the todo list. 
 
-
-
 ## Supported Devices
 
 All STM32F10Xxx devices should be supported
@@ -88,8 +86,15 @@ Todos
 
 Todos
 - Rename project (It's quite numbery)
-- Fix directory structure
-- Use UART printing image to test application upload
+- Fix directory structure 
+- Use UART printing image to test application upload 
+- ~~Use factory class to generate devices~~
+
+### Round 4 - Refactor STMDevice class
+
+After switching to a factory method to deliver the device class, I have to think about the mess of the STMDevice class connection, especially the optional SerialTool inclusion in the init and the poor handling of getting the device object. Ideally, I want to offer a little automation, so that instantiation of a class can include collecting the device information - this is a step that almost every user will take anyway and it's vital to the creation of the device object, so it makes sense. If there is no device object then most of the class's function becomes obsolete. However it might be interesting to let users set their own device object to the class. Containing class behaviour to the initialiser arguments is pretty common in my experience of Python. Strict checking of object and connected state afterwards seems the most logical step. Maybe I should be looking at __the book__ to see if there's a sensible pattern to use here... maybe a supervisor? Bridge maybe? Is there a bridge pattern or am I just making that up? 
+
+Facade. That's the one I was thinking of.
 
 
 ## Bootloader Memory Access

@@ -10,7 +10,7 @@ from struct import unpack, pack
 from enum import Enum
 from dataclasses import dataclass
 from collections import namedtuple
-from .errors import DeviceNotSupportedError, InvalidAddressError
+from .errors import DeviceNotSupportedError, InvalidAddressError, UnpackInfoFailedError, InvalidChecksumError
 from .utilities import getByteComplement, setBit, clearBit
 
 FlashOptionBytes = namedtuple(
@@ -93,6 +93,9 @@ class OptionBytes:
     write_protect_2: int = 0x00
     write_protect_3: int = 0x00
 
+    # info parameters
+    data_length: int = 16
+
     def __init__(self):
         """Default Constructor - do not use"""
         pass
@@ -145,7 +148,7 @@ class OptionBytes:
         return self
 
     @classmethod
-    def FromBytes(cls, data: bytearray) -> OptionBytes:
+    def FromBytes(cls, data: bytearray, strict_checking: bool=False) -> OptionBytes:
         """Constructor - creates an option-bytes object from
         an array of bytes. Simplifies decoding the option-byte
         settings read from a device
@@ -156,8 +159,22 @@ class OptionBytes:
         Returns:
             OptionBytes: the option-bytes object
         """
+        if len(data) != cls.data_length:
+            raise UnpackInfoFailedError(f"Invalid data length for option byte object {len(data)} != {cls.data_length}")
         self = OptionBytes()
         fob = FlashOptionBytes._make(unpack(">16B", data))
+
+        if strict_checking == True:
+            if fob.nUser != getByteComplement(fob.user) or \
+               fob.nData0 != getByteComplement(fob.data0) or \
+               fob.nData1 != getByteComplement(fob.data1) or \
+               fob.nReadProt != getByteComplement(fob.readProt) or \
+               fob.nWriteProt0 != getByteComplement(fob.writeProt0) or \
+               fob.nWriteProt1 != getByteComplement(fob.writeProt1) or \
+               fob.nWriteProt2 != getByteComplement(fob.writeProt2) or \
+               fob.nWriteProt3 != getByteComplement(fob.writeProt3):
+                raise InvalidChecksumError("Parity byte checks not passed!")
+
         self.read_protect = fob.readProt
         self.watchdog_type = fob.user & 0b1
         self.reset_on_stop = 0 if ((fob.user >> 1) & 0b1) else 1
@@ -488,13 +505,13 @@ class DeviceType:
     # 32kB * 64 conn
     flash_mem_size: int
 
-    def __init__(self, pid: int, bootloaderVersion: float) -> DeviceType:
+    def __init__(self, pid: int, bootloaderVersion: float=2.2, option_bytes: OptionBytes | None=None) -> DeviceType:
         """constructor for the DeviceType
 
         Args:
             pid (int): ID read from the device
             bootloaderVersion (float): bootloader version read from device
-            TODO: Probably don't need BL version for constructor...?
+            option_bytes: optional OptionBytes object to set current values 
 
         Raises:
             DeviceNotSupportedError: Device ID is not currently supported. See README for
@@ -503,50 +520,7 @@ class DeviceType:
         # same across most devices, intialise first, overwrite if neccesary
         self.pid = pid
         self.bootloaderVersion = bootloaderVersion
-        self.bootloader_ram = Region("bootloader ram", 0x20000000, 0x200001FF)
         self.system_memory = Region("system memory", 0x1FFFF000, 0x1FFFF7FF)
-
-        # select device characteristics from pid
-        if self.pid == 0x0412:
-            self.name = "stm32f10xxxLowDensity"
-            self.ram = Region("ram", 0x20000200, 0x200027FF)
-            self.flash_page_size = 1024
-            self.flash_page_num = 32
-            self.flash_info_blk_size = 258
-        elif self.pid == 0x0410:
-            self.name = "stm32f10xxxMedDensity"
-            self.ram = Region("ram", 0x20000200, 0x20004FFF)
-            self.flash_page_size = 1024
-            self.flash_page_num = 128
-            self.flash_info_blk_size = 258
-        elif self.pid == 0x0414:
-            self.name = "stm32f10xxxHighDensity"
-            self.ram = Region("ram", 0x20000200, 0x2000FFFF)
-            self.flash_page_size = 2048
-            self.flash_page_num = 256
-            self.flash_info_blk_size = 258
-        elif self.pid == 0x0420:
-            self.name = "stm32f10xxxMedDensityValueLine"
-            self.ram = Region("ram", 0x20000200, 0x20001FFF)
-            self.flash_page_size = 1024
-            self.flash_page_num = 128
-            self.flash_info_blk_size = 258
-        elif self.pid == 0x0428:
-            self.name = "stm32f10xxxHighDensityValueLine"
-            self.ram = Region("ram", 0x20000200, 0x20007FFF)
-            self.flash_page_size = 2048
-            self.flash_page_num = 256
-            self.flash_info_blk_size = 258
-        elif self.pid == 0x0430:
-            self.name = "stm32f10xxxXlDensity"
-            self.ram = Region("ram", 0x20000800, 0x20017FFF)
-            self.system_memory = Region("system memory", 0x1FFFF000, 0x1FFF77FF)
-            self.flash_page_size = 2048
-            self.flash_page_num = 256
-            self.flash_info_blk_size = 258
-            self.bootloader_ram = Region("bootloader ram", 0x20000000, 0x200007FF)
-        else:
-            raise DeviceNotSupportedError("Either an invalid or unsupported product")
 
         # flash memory region common
         self.flash_memory = Region(
@@ -554,6 +528,8 @@ class DeviceType:
             0x08000000,
             (0x08000000 + (self.flash_page_num * self.flash_page_size)),
         )
+        
+        self.flash_mem_size = self.flash_memory.size
 
         self.flash_pages = []
         for i in range(self.flash_page_num):
@@ -570,8 +546,11 @@ class DeviceType:
         # so use region rather than Register
         self.flash_option_bytes = Region("OptionBytes", 0x1FFFF800, 0x1FFF800 + 16)
 
-        # fill this in on demand
-        self.opt_bytes = OptionBytes.FromAttributes()
+        if option_bytes is not None:
+            self.opt_bytes = option_bytes
+        else:
+            # the user can update this later
+            self.opt_bytes = OptionBytes.FromAttributes()
 
     def updateOptionBytes(self, data: bytearray) -> None:
         """create the OptionBytes object
@@ -595,3 +574,98 @@ class DeviceType:
                 f"Invalid flash page requested (max {self.flash_pages_num-1})"
             )
         return self.flash_pages[page].start
+
+
+
+class Stm32f10xLow(DeviceType):
+
+    def __init__(self, *args, **kwargs):
+        self.name = "stm32f10xxxLowDensity"
+        self.ram = Region("ram", 0x20000200, 0x200027FF)
+        self.flash_page_size = 1024
+        self.flash_page_num = 32
+        self.flash_info_blk_size = 258
+        super().__init__(self, *args, **kwargs)
+
+
+class Stm32f10xMed(DeviceType):
+
+    def __init__(self, *args, **kwargs):
+        self.name = "stm32f10xxxMedDensity"
+        self.ram = Region("ram", 0x20000200, 0x20004FFF)
+        self.flash_page_size = 1024
+        self.flash_page_num = 128
+        self.flash_info_blk_size = 258
+        super().__init__(*args, **kwargs)
+
+class Stm32f10xHigh(DeviceType):
+            
+    def __init__(self, *args, **kwargs):
+        self.name = "stm32f10xxxHighDensity"
+        self.ram = Region("ram", 0x20000200, 0x2000FFFF)
+        self.flash_page_size = 2048
+        self.flash_page_num = 256
+        self.flash_info_blk_size = 258
+        super().__init__(self, *args, **kwargs)
+
+class Stm32f10xMedVal(DeviceType):
+
+    def __init__(self, *args, **kwargs):
+        self.name = "stm32f10xxxMedDensityValueLine"
+        self.ram = Region("ram", 0x20000200, 0x20001FFF)
+        self.flash_page_size = 1024
+        self.flash_page_num = 128
+        self.flash_info_blk_size = 258
+        super().__init__(self, *args, **kwargs)
+
+class Stm32f10xHighVal(DeviceType):
+
+    def __init__(self, *args, **kwargs):
+        self.name = "stm32f10xxxHighDensityValueLine"
+        self.ram = Region("ram", 0x20000200, 0x20007FFF)
+        self.flash_page_size = 2048
+        self.flash_page_num = 256
+        self.flash_info_blk_size = 258
+        super().__init__(self, *args, **kwargs)
+
+class Stm32f10xXlDensity(DeviceType):
+    
+    def __init__(self, *args, **kwargs):
+        super().__init__(self, *args, **kwargs)
+        self.name = "stm32f10xxxXlDensity"
+        self.ram = Region("ram", 0x20000800, 0x20017FFF)
+        self.system_memory = Region("system memory", 0x1FFFF000, 0x1FFF77FF)
+        self.flash_page_size = 2048
+        self.flash_page_num = 256
+        self.flash_info_blk_size = 258
+        self.bootloader_ram = Region("bootloader ram", 0x20000000, 0x200007FF)
+
+
+def device_from_id(pid: int, bootloader_version: float=2.2, option_bytes: OptionBytes | None = None) -> DeviceType | None:
+    """
+        Factory method to return the correct device class
+        from the pid. The bootloader version is a bit surplus here. 
+        Designed to work with             
+
+        Args: 
+            pid - the device identification number
+            bootloader_version - the version of device bootloader
+        
+        Return: 
+            DeviceType object or None for invalid/unknown PID
+    """
+    # select device characteristics from pid
+    if pid == 0x0412:
+        return Stm32f10xLow(pid, bootloader_version, option_bytes)
+    elif pid == 0x0410:
+        return Stm32f10xMed(pid, bootloader_version, option_bytes)
+    elif pid == 0x0414:
+        return Stm32f10xHigh(pid, bootloader_version, option_bytes)
+    elif pid == 0x0420:
+        return Stm32f10xMedVal(pid, bootloader_version, option_bytes)
+    elif pid == 0x0428:
+        return Stm32f10xHighVal(pid, bootloader_version, option_bytes)
+    elif pid == 0x0430:
+        return Stm32f10xXlDensity(pid, bootloader_version, option_bytes)
+    else:
+        raise DeviceNotSupportedError(f"Device with PID {hex(pid)} is not supported")

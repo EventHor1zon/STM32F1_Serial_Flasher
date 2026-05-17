@@ -147,3 +147,4 @@ Makefile
 .old
 docs/**
 source/
+test_output/

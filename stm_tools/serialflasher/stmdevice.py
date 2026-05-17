@@ -2,7 +2,7 @@ from time import sleep
 from .utilities import unpack16BitInt
 from .constants import *
 from .errors import *
-from .devices import DeviceType
+from .devices import DeviceType, device_from_id, OptionBytes
 from .serialtool import SerialTool
 
 
@@ -22,7 +22,6 @@ class STMInterface:
         Args:
             serialTool (SerialTool, optional): user-configured SerialTool object. Defaults to None.
         """
-        self.connected = False
         self.serialTool = serialTool
         self.connected = False if serialTool is None else serialTool.getConnectedState()
         self.device = None
@@ -63,39 +62,69 @@ class STMInterface:
         self.connected = self.serialTool.connect()
         return self.connected
 
-    def connectAndReadInfo(
-        self, port: str = "", baud: int = 9600, readOptBytes: bool = False
-    ) -> bool:
-        """Connect to the device and retrieve the device information
+    def connectAndGetDevice(
+        self, port: str = "", baud: int = 9600, read_opt_bytes: bool = False
+    ) -> DeviceType:
+        """Connect to the device and retrieve the device information, 
+            returning the device type object on success
 
         Args:
             port (str, optional): Port to connect to. Defaults to "".
             baud (int, optional): Baud rate to connect at. Defaults to 9600.
-            readOptBytes (bool, optional): Read the option-bytes from the device. Defaults to False.
+            read_opt_bytes (bool, optional): Read the option-bytes from the device. Defaults to False.
 
         Returns:
-            bool: Success
+            DeviceType object or raises invalid device
         """
+        if self.device is not None:
+            self.device = None
+
         success = self.connectToDevice(port, baud)
 
         if success:
             # clear the device info if it exists
-            if self.device is not None:
-                self.device = None
-            self.readDeviceInfo()
+            pid, info, bootloader = self.readDeviceInfo()
 
-        if success and readOptBytes:
-            success = self.readOptionBytes()
+        opts = None
+        if success and read_opt_bytes:
+            opts_raw = self.readOptionBytes()
+            opts = OptionBytes.FromBytes(opts_raw)
 
-        return success
+        if success:
+            self.device = device_from_id(pid, bootloader, opts)
 
-    def readDeviceInfo(self) -> bool:
-        """collects the object's id and bootloader version
-        and creates a device model from it
-        NOTE: probably shouldn't have so many exceptions here?
-        Use exceptions for now as this is a fundamental function which
-        requires multiple other commands to work in order to build
-        Device model
+        if success and self.device is None:
+            print("Error: invalid device type!")
+
+        return self.device
+
+    def getDevice(self, init_device: bool=True, read_opt_bytes: bool=True) -> DeviceType | None:
+        if not self.device:
+            if init_device:
+                # we can be connected to a device without having created 
+                # a device model, so check this first
+                try:
+                    if self.connected() == True:
+                            pid, info, bootloader = self.readDeviceInfo()
+
+                            opts = None
+                            if read_opt_bytes:
+                                opts_raw = self.readOptionBytes()
+                                opts = OptionBytes.FromBytes(opts_raw)
+
+                            self.device = device_from_id(pid, bootloader, opts)                       
+                    elif self.serialTool is not None:
+                        self.connectAndGetDevice()
+                except CommandFailedError as e:
+                    print(f"Command Error: {e}")
+                except DeviceNotSupportedError as e:
+                    print(f"Unsupported Device Error: {e}")
+                    self.device = None
+
+        return self.device
+
+    def readDeviceInfo(self) -> tuple:
+        """collects the object's id, info and bootloader version
         """
         if not self.connected:
             raise DeviceNotConnectedError("Device connection not started")
@@ -113,9 +142,8 @@ class STMInterface:
             raise CommandFailedError("GetInfo Command failed")
 
         bl_version = self.unpackBootloaderVersion(info)
-        self.device = DeviceType(pid, bl_version)
 
-        return True
+        return pid, info, bl_version
 
     def getDeviceBootloaderVersion(self) -> float:
         """Getter for bootloader version
@@ -147,7 +175,7 @@ class STMInterface:
             )
         return self.device.pid
 
-    def readOptionBytes(self) -> bool:
+    def readOptionBytes(self) -> bytearray:
         """reads the flash option-bytes from the device and creates an
         OptionBytes object from the result
 
@@ -160,19 +188,21 @@ class STMInterface:
         if not self.connected:
             raise DeviceNotConnectedError
 
+        # since we may not have a device object yet, use the 
+        # known OPTBYTES addr
         success, rx = self.serialTool.cmdReadFromMemoryAddress(
-            self.device.flash_option_bytes.start,
+            STM_F10X_OPTBYTES_ADDR,
             16,
         )
 
-        if success:
-            if self.device is not None:
-                try:
-                    self.device.updateOptionBytes(rx)
-                except:
-                    success = False
+        if not success:
+            raise InformationNotRetrieved("Unable to read option bytes memory!")
 
-        return success
+        if self.device is not None:
+            # let any exceptions here bubble up
+            self.device.updateOptionBytes(rx)
+
+        return bytearray(rx)
 
     def writeToOptionBytes(self, data: bytearray, reconnect: bool = False) -> bool:
         """writes data to the device flash option-bytes address. This must be a 16-byte write
@@ -238,7 +268,7 @@ class STMInterface:
         success = True
 
         # max read length is 256 so do larger reads in multiples
-        full_reads = int(length / 256)
+        full_reads = int(length / 256) if length > 255 else 0
         rem = length % 256
 
         for i in range(full_reads):
@@ -440,9 +470,9 @@ class STMInterface:
             raise DeviceNotConnectedError
         if not self.device:
             raise InformationNotRetrieved
-        if self.device.opt_bytes == None:
+        if not self.device.opt_bytes:
             raise InformationNotRetrieved
-        write_prot = False
+
         if (
             self.device.opt_bytes.write_protect_0 == 0
             and self.device.opt_bytes.write_protect_1 == 0
@@ -460,7 +490,7 @@ class STMInterface:
             raise InformationNotRetrieved
         if self.device.opt_bytes == None:
             raise InformationNotRetrieved
-        write_prot = False
+
         if (
             self.device.opt_bytes.write_protect_0 == 0
             and self.device.opt_bytes.write_protect_1 == 0
